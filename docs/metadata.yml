@@ -1,0 +1,65 @@
+---
+title: "Embedded Mastery: C, Ada, Rust & Zig"
+subtitle: "A Project-Based Tutorial for Embedded Development"
+author:
+  - "Embedded Mastery Project"
+date: "2026"
+lang: en
+abstract: |
+  A comprehensive, project-based tutorial for mastering embedded development
+  in C, Ada, Rust, and Zig. Build 15 projects from LED blinker to safety-critical
+  systems, all verified in QEMU and Renode emulators.
+rights: "CC BY-SA 4.0"
+keywords:
+  - embedded systems
+  - microcontroller
+  - bare metal
+  - C programming
+  - Ada programming
+  - Rust programming
+  - Zig programming
+  - QEMU
+  - Renode
+  - STM32
+  - Cortex-M
+  - RTOS
+  - safety-critical
+  - SPARK
+  - MISRA
+header-includes: |
+  \DeclareUnicodeCharacter{2500}{-}
+  \DeclareUnicodeCharacter{2501}{=}
+  \DeclareUnicodeCharacter{2502}{|}
+  \DeclareUnicodeCharacter{2503}{|}
+  \DeclareUnicodeCharacter{250C}{+}
+  \DeclareUnicodeCharacter{250F}{+}
+  \DeclareUnicodeCharacter{2510}{+}
+  \DeclareUnicodeCharacter{2513}{+}
+  \DeclareUnicodeCharacter{2514}{+}
+  \DeclareUnicodeCharacter{2517}{+}
+  \DeclareUnicodeCharacter{2518}{+}
+  \DeclareUnicodeCharacter{251B}{+}
+  \DeclareUnicodeCharacter{251C}{+}
+  \DeclareUnicodeCharacter{251D}{+}
+  \DeclareUnicodeCharacter{2524}{+}
+  \DeclareUnicodeCharacter{2525}{+}
+  \DeclareUnicodeCharacter{252C}{+}
+  \DeclareUnicodeCharacter{252F}{+}
+  \DeclareUnicodeCharacter{2534}{+}
+  \DeclareUnicodeCharacter{2537}{+}
+  \DeclareUnicodeCharacter{253C}{+}
+  \DeclareUnicodeCharacter{253F}{+}
+  \DeclareUnicodeCharacter{2550}{=}
+  \DeclareUnicodeCharacter{2551}{|}
+  \DeclareUnicodeCharacter{2554}{+}
+  \DeclareUnicodeCharacter{2557}{+}
+  \DeclareUnicodeCharacter{255A}{+}
+  \DeclareUnicodeCharacter{255D}{+}
+  \DeclareUnicodeCharacter{2022}{\textbullet}
+  \DeclareUnicodeCharacter{00B7}{\textperiodcentered}
+  \DeclareUnicodeCharacter{00D7}{\texttimes}
+  \DeclareUnicodeCharacter{2192}{\textrightarrow}
+  \DeclareUnicodeCharacter{2190}{\textleftarrow}
+  \DeclareUnicodeCharacter{26A0}{!}
+  \DeclareUnicodeCharacter{2139}{i}
+---

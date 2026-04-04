@@ -1,0 +1,204 @@
+/* ============================================================
+   Embedded Mastery Tutorial — Print / PDF Styles
+   Used by WeasyPrint for PDF generation
+   ============================================================ */
+
+/* Force light theme for print */
+:root {
+  --bg-primary: #ffffff;
+  --bg-secondary: #f6f8fa;
+  --bg-tertiary: #eef1f4;
+  --bg-code: #f0f2f5;
+  --bg-code-block: #f6f8fa;
+  --bg-sidebar: #ffffff;
+  --bg-topbar: #ffffff;
+  --bg-hover: #e8eaed;
+  --bg-active: #d2d6db;
+  --bg-callout-tip: #e8f5e9;
+  --bg-callout-warning: #fff8e1;
+  --bg-callout-note: #e3f2fd;
+  --bg-table-header: #f0f2f5;
+  --bg-table-stripe: #f8f9fa;
+
+  --text-primary: #1a1a2e;
+  --text-secondary: #4a4a5a;
+  --text-tertiary: #6b7280;
+  --text-link: #2563eb;
+  --text-link-hover: #1d4ed8;
+  --text-sidebar: #1a1a2e;
+  --text-sidebar-hover: #1a1a2e;
+  --text-sidebar-active: #2563eb;
+  --text-code: #d73a49;
+  --text-code-block: #24292e;
+  --text-callout-tip: #2e7d32;
+  --text-callout-warning: #f57f17;
+  --text-callout-note: #1565c0;
+  --text-topbar: #1a1a2e;
+
+  --border-primary: #e2e5e9;
+  --border-secondary: #d1d5db;
+  --border-code: #e5e7eb;
+  --border-callout-tip: #a5d6a7;
+  --border-callout-warning: #ffe082;
+  --border-callout-note: #90caf9;
+  --border-table: #e2e5e9;
+
+  --accent: #2563eb;
+  --accent-light: #dbeafe;
+}
+
+/* Hide non-printable elements */
+#sidebar,
+#sidebar-overlay,
+#topbar,
+#theme-toggle,
+#sidebar-toggle,
+#sidebar-close,
+#footer,
+.page-nav {
+  display: none !important;
+}
+
+/* Reset content layout for print */
+#content {
+  margin: 0 !important;
+}
+
+#main-article {
+  max-width: 100% !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Page breaks */
+@page {
+  size: A4;
+  margin: 20mm 18mm;
+  @bottom-right {
+    content: counter(page);
+    font-size: 9pt;
+    color: #6b7280;
+  }
+  @top-right {
+    content: string(chapter);
+    font-size: 8pt;
+    color: #6b7280;
+    font-style: italic;
+  }
+}
+
+@page :first {
+  @top-right {
+    content: "";
+  }
+  @bottom-right {
+    content: "";
+  }
+}
+
+/* Chapter-level page breaks */
+h1 {
+  string-set: chapter content();
+  break-before: page;
+  margin-top: 0;
+  padding-top: 1rem;
+}
+
+/* First h1 (title) should not break before */
+article > header h1 {
+  break-before: avoid;
+}
+
+h2 {
+  break-after: avoid;
+}
+
+h3 {
+  break-after: avoid;
+}
+
+/* Avoid splitting code blocks and tables across pages */
+pre, table, blockquote {
+  break-inside: avoid;
+}
+
+/* Avoid splitting list items */
+li {
+  break-inside: avoid;
+}
+
+/* Ensure images don't break */
+img {
+  break-inside: avoid;
+  max-width: 100%;
+}
+
+/* Links: show URL after link text for print */
+a[href^="http"]::after {
+  content: " (" attr(href) ")";
+  font-size: 0.8em;
+  color: #6b7280;
+}
+
+/* Syntax highlighting for print (same as light theme) */
+span.kw { color: #d73a49; font-weight: 500; }
+span.dt { color: #d73a49; }
+span.dv { color: #005cc5; }
+span.bn { color: #005cc5; }
+span.fl { color: #005cc5; }
+span.ch { color: #032f62; }
+span.st { color: #032f62; }
+span.co { color: #6a737d; font-style: italic; }
+span.ot { color: #22863a; }
+span.al { color: #b31d28; font-weight: 500; }
+span.fu { color: #6f42c1; }
+span.re { color: #005cc5; }
+span.er { color: #b31d28; font-weight: 500; }
+span.cn { color: #005cc5; font-weight: 500; }
+span.sc { color: #032f62; }
+span.ss { color: #032f62; }
+span.im { color: #22863a; }
+span.va { color: #e36209; }
+span.cf { color: #d73a49; font-weight: 500; }
+span.op { color: #24292e; }
+span.pp { color: #d73a49; }
+
+/* Title page styling */
+article > header {
+  page-break-after: always;
+  text-align: center;
+  padding: 3rem 0;
+}
+
+article > header h1.title {
+  font-size: 2.5rem;
+  break-before: avoid;
+}
+
+article > header .subtitle {
+  font-size: 1.5rem;
+  color: #2563eb;
+}
+
+/* Table of Contents */
+nav[id="TOC"] {
+  page-break-after: always;
+  border-bottom: 2px solid #e2e5e9;
+  padding-bottom: 1rem;
+  margin-bottom: 2rem;
+}
+
+nav[id="TOC"] ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+nav[id="TOC"] > ul > li {
+  margin-bottom: 0.5rem;
+  font-weight: 600;
+}
+
+nav[id="TOC"] > ul > li > ul {
+  padding-left: 1.5rem;
+  font-weight: normal;
+}

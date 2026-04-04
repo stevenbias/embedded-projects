@@ -1,0 +1,108 @@
+/* ============================================================
+   Embedded Mastery Tutorial — Dark Theme Overrides
+   Applied when <html data-theme="dark">
+   ============================================================ */
+
+[data-theme="dark"] {
+  /* Background colors */
+  --bg-primary: #0d1117;
+  --bg-secondary: #161b22;
+  --bg-tertiary: #21262d;
+  --bg-code: #1c2128;
+  --bg-code-block: #161b22;
+  --bg-sidebar: #0d1117;
+  --bg-topbar: #161b22;
+  --bg-hover: #21262d;
+  --bg-active: #30363d;
+  --bg-callout-tip: #0d2818;
+  --bg-callout-warning: #2a1f00;
+  --bg-callout-note: #0c2d6b;
+  --bg-table-header: #161b22;
+  --bg-table-stripe: #0f1318;
+  --bg-checkbox: #30363d;
+
+  /* Text colors */
+  --text-primary: #e6edf3;
+  --text-secondary: #b0bac6;
+  --text-tertiary: #8b949e;
+  --text-link: #58a6ff;
+  --text-link-hover: #79b8ff;
+  --text-sidebar: #b0bac6;
+  --text-sidebar-hover: #ffffff;
+  --text-sidebar-active: #58a6ff;
+  --text-code: #ff7b72;
+  --text-code-block: #e6edf3;
+  --text-callout-tip: #3fb950;
+  --text-callout-warning: #d29922;
+  --text-callout-note: #58a6ff;
+  --text-topbar: #e6edf3;
+  --text-checkbox: #e6edf3;
+
+  /* Border colors */
+  --border-primary: #30363d;
+  --border-secondary: #484f58;
+  --border-code: #30363d;
+  --border-callout-tip: #238636;
+  --border-callout-warning: #9e6a03;
+  --border-callout-note: #1f6feb;
+  --border-table: #30363d;
+
+  /* Accent */
+  --accent: #58a6ff;
+  --accent-light: #0c2d6b;
+  --accent-dark: #79b8ff;
+
+  /* Shadows */
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 6px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 10px 15px rgba(0, 0, 0, 0.5);
+  --shadow-sidebar: 2px 0 8px rgba(0, 0, 0, 0.5);
+}
+
+/* Dark theme syntax highlighting (GitHub Dark) */
+[data-theme="dark"] span.kw { color: #ff7b72; font-weight: 500; }
+[data-theme="dark"] span.dt { color: #ff7b72; }
+[data-theme="dark"] span.dv { color: #79c0ff; }
+[data-theme="dark"] span.bn { color: #79c0ff; }
+[data-theme="dark"] span.fl { color: #79c0ff; }
+[data-theme="dark"] span.ch { color: #a5d6ff; }
+[data-theme="dark"] span.st { color: #a5d6ff; }
+[data-theme="dark"] span.co { color: #8b949e; font-style: italic; }
+[data-theme="dark"] span.ot { color: #7ee787; }
+[data-theme="dark"] span.al { color: #ff7b72; font-weight: 500; }
+[data-theme="dark"] span.fu { color: #d2a8ff; }
+[data-theme="dark"] span.re { color: #79c0ff; }
+[data-theme="dark"] span.er { color: #ff7b72; font-weight: 500; }
+[data-theme="dark"] span.cn { color: #79c0ff; font-weight: 500; }
+[data-theme="dark"] span.sc { color: #a5d6ff; }
+[data-theme="dark"] span.ss { color: #a5d6ff; }
+[data-theme="dark"] span.im { color: #7ee787; }
+[data-theme="dark"] span.va { color: #ffa657; }
+[data-theme="dark"] span.cf { color: #ff7b72; font-weight: 500; }
+[data-theme="dark"] span.op { color: #e6edf3; }
+[data-theme="dark"] span.pp { color: #ff7b72; }
+
+/* Dark theme scrollbar */
+[data-theme="dark"] ::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-track {
+  background: var(--bg-secondary);
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb {
+  background: var(--border-secondary);
+  border-radius: 4px;
+}
+
+[data-theme="dark"] ::-webkit-scrollbar-thumb:hover {
+  background: var(--text-tertiary);
+}
+
+/* Dark theme selection */
+[data-theme="dark"] ::selection {
+  background: #1f6feb;
+  color: #ffffff;
+}

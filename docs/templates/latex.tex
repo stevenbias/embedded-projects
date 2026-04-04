@@ -1,0 +1,251 @@
+% ============================================================
+% Embedded Mastery Tutorial — LaTeX Template for PDF
+% Uses only packages available in basic texlive
+% ============================================================
+
+\documentclass[11pt,openany,twoside]{book}
+
+% --- Encoding & Font ---
+\usepackage[utf8]{inputenc}
+\usepackage[T1]{fontenc}
+\usepackage{lmodern}
+\usepackage{microtype}
+
+% --- Unicode box-drawing characters ---
+\DeclareUnicodeCharacter{251C}{+}
+\DeclareUnicodeCharacter{2500}{-}
+\DeclareUnicodeCharacter{2514}{+}
+\DeclareUnicodeCharacter{2502}{|}
+\DeclareUnicodeCharacter{252C}{+}
+\DeclareUnicodeCharacter{2524}{+}
+\DeclareUnicodeCharacter{2534}{+}
+\DeclareUnicodeCharacter{253C}{+}
+\DeclareUnicodeCharacter{2501}{=}
+\DeclareUnicodeCharacter{2503}{|}
+\DeclareUnicodeCharacter{250F}{+}
+\DeclareUnicodeCharacter{2513}{+}
+\DeclareUnicodeCharacter{2517}{+}
+\DeclareUnicodeCharacter{251B}{+}
+\DeclareUnicodeCharacter{2022}{\textbullet}
+\DeclareUnicodeCharacter{00B7}{\textperiodcentered}
+\DeclareUnicodeCharacter{00D7}{\texttimes}
+\DeclareUnicodeCharacter{2192}{\textrightarrow}
+\DeclareUnicodeCharacter{2190}{\textleftarrow}
+\DeclareUnicodeCharacter{26A0}{!}
+\DeclareUnicodeCharacter{2139}{i}
+
+% --- Page Layout ---
+\usepackage[
+  paperwidth=170mm,
+  paperheight=240mm,
+  top=25mm,
+  bottom=25mm,
+  inner=25mm,
+  outer=20mm,
+  headheight=15mm,
+  headsep=5mm,
+  footskip=12mm
+]{geometry}
+
+% --- Colors ---
+\usepackage{xcolor}
+\definecolor{primarycolor}{HTML}{2563eb}
+\definecolor{secondarycolor}{HTML}{1a1a2e}
+\definecolor{codebg}{HTML}{f6f8fa}
+\definecolor{codeborder}{HTML}{e2e5e9}
+\definecolor{tipbg}{HTML}{e8f5e9}
+\definecolor{tipborder}{HTML}{a5d6a7}
+\definecolor{warningbg}{HTML}{fff8e1}
+\definecolor{warningborder}{HTML}{ffe082}
+\definecolor{notebg}{HTML}{e3f2fd}
+\definecolor{noteborder}{HTML}{90caf9}
+\definecolor{linkcolor}{HTML}{2563eb}
+\definecolor{tableheader}{HTML}{f0f2f5}
+\definecolor{tablestripe}{HTML}{f8f9fa}
+
+% --- Hyperlinks ---
+\usepackage{hyperref}
+\hypersetup{
+  colorlinks=true,
+  linkcolor=primarycolor,
+  urlcolor=primarycolor,
+  citecolor=primarycolor,
+  pdfborder={0 0 0},
+  pdfauthor={$for(author)$$author$$sep$, $endfor$},
+  pdftitle={$if(title)$$title$$else$Embedded Mastery: C, Ada, Rust \& Zig$endif$},
+  pdfsubject={A Project-Based Tutorial for Embedded Development},
+  pdfkeywords={embedded, C, Ada, Rust, Zig, tutorial, microcontroller}
+}
+
+% --- Headers & Footers ---
+\usepackage{fancyhdr}
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[LE]{\small\textcolor{secondarycolor}{\leftmark}}
+\fancyhead[RO]{\small\textcolor{secondarycolor}{\rightmark}}
+\fancyfoot[LE,RO]{\small\thepage}
+\renewcommand{\headrulewidth}{0.5pt}
+\renewcommand{\footrulewidth}{0pt}
+
+% --- Chapter/Section Styling (no titlesec — use native LaTeX) ---
+\makeatletter
+\def\@makechapterhead#1{%
+  {\parindent \z@ \raggedright \normalfont
+    \ifnum \c@secnumdepth >\m@ne
+      \huge\bfseries\color{secondarycolor}\@chapapp\space \thechapter
+      \par\nobreak
+      \vskip 6\p@
+    \fi
+    \interlinepenalty\@M
+    \Huge \bfseries \color{secondarycolor} #1\par\nobreak
+    \vskip 20\p@
+    \hrule
+    \vskip 20\p@
+  }}
+\def\@makeschapterhead#1{%
+  {\parindent \z@ \raggedright \normalfont
+    \interlinepenalty\@M
+    \Huge \bfseries \color{secondarycolor} #1\par\nobreak
+    \vskip 20\p@
+    \hrule
+    \vskip 20\p@
+  }}
+\renewcommand{\section}{\@startsection {section}{1}{\z@}%
+  {-3.5ex \@plus -1ex \@minus -.2ex}%
+  {2.3ex \@plus.2ex}%
+  {\normalfont\Large\bfseries\color{secondarycolor}}}
+\renewcommand{\subsection}{\@startsection{subsection}{2}{\z@}%
+  {-3.25ex\@plus -1ex \@minus -.2ex}%
+  {1.5ex \@plus .2ex}%
+  {\normalfont\large\bfseries\color{primarycolor}}}
+\renewcommand{\subsubsection}{\@startsection{subsubsection}{3}{\z@}%
+  {-3.25ex\@plus -1ex \@minus -.2ex}%
+  {1.5ex \@plus .2ex}%
+  {\normalfont\normalsize\bfseries}}
+\makeatother
+
+% --- Code Blocks (pandoc Highlighting + Shaded env) ---
+% Simple environments for pandoc code blocks
+\definecolor{shadecolor}{HTML}{f6f8fa}
+\newenvironment{Shaded}{}{}
+\newenvironment{Highlighting}{}{}
+
+% Inline code
+\definecolor{inlinecodebg}{HTML}{f0f2f5}
+\let\oldtexttt\texttt
+\renewcommand{\texttt}[1]{%
+  \colorbox{inlinecodebg}{\oldtexttt{\small#1}}%
+}
+
+% --- Tables ---
+\usepackage{booktabs}
+\usepackage{longtable}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{colortbl}
+\usepackage{calc}
+\rowcolors{2}{tablestripe}{white}
+\arrayrulecolor{codeborder}
+
+% --- Graphics ---
+\usepackage{graphicx}
+\graphicspath{{./assets/}}
+
+% --- Lists (no enumitem — use native) ---
+% Default list spacing is acceptable
+
+% --- Checkboxes ---
+\usepackage{pifont}
+\newcommand{\checkbox}{\raisebox{0.5pt}{\textcircled{\raisebox{-0.5pt}{\tiny\phantom{x}}}}}
+\newcommand{\checkedbox}{\raisebox{0.5pt}{\textcircled{\raisebox{-0.5pt}{\tiny\ding{51}}}}}
+
+% --- Callout Boxes (simple framed boxes, no tcolorbox) ---
+\newenvironment{callouttip}{%
+  \par\medskip
+  \noindent\colorbox{tipbg}{%
+    \parbox{\dimexpr\linewidth-2\fboxsep}{%
+      \setlength{\fboxsep}{6pt}%
+      \color{tipborder}\rule{\linewidth}{1pt}%
+      \par\smallskip
+      \textbf{\color{tipborder}Tip}\par\smallskip
+      \normalcolor\ignorespaces
+    }%
+  }%
+}{\par\medskip}
+
+\newenvironment{calloutwarning}{%
+  \par\medskip
+  \noindent\colorbox{warningbg}{%
+    \parbox{\dimexpr\linewidth-2\fboxsep}{%
+      \setlength{\fboxsep}{6pt}%
+      \color{warningborder}\rule{\linewidth}{1pt}%
+      \par\smallskip
+      \textbf{\color{warningborder}Warning}\par\smallskip
+      \normalcolor\ignorespaces
+    }%
+  }%
+}{\par\medskip}
+
+\newenvironment{calloutnote}{%
+  \par\medskip
+  \noindent\colorbox{notebg}{%
+    \parbox{\dimexpr\linewidth-2\fboxsep}{%
+      \setlength{\fboxsep}{6pt}%
+      \color{noteborder}\rule{\linewidth}{1pt}%
+      \par\smallskip
+      \textbf{\color{noteborder}Note}\par\smallskip
+      \normalcolor\ignorespaces
+    }%
+  }%
+}{\par\medskip}
+
+% --- Math ---
+$if(math)$
+$math$
+$endif$
+
+% --- Line spacing ---
+\usepackage{setspace}
+\onehalfspacing
+
+% --- Pandoc compatibility ---
+\providecommand{\tightlist}{%
+  \setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+
+% --- Header includes ---
+$for(header-includes)$
+$header-includes$
+$endfor$
+
+\begin{document}
+
+% --- Title Page ---
+$if(title)$
+\begin{titlepage}
+  \begin{center}
+    \vspace*{2cm}
+    {\Huge\bfseries\color{secondarycolor} Embedded Mastery}\\[0.5cm]
+    {\Large\color{primarycolor} C \textperiodcentered\ Ada \textperiodcentered\ Rust \textperiodcentered\ Zig}\\[1cm]
+    {\large A Project-Based Tutorial}\\[2cm]
+    \rule{0.5\textwidth}{0.5pt}\\[1cm]
+    $if(author)$
+    {\large $for(author)$$author$$sep$, $endfor$}\\[0.5cm]
+    $endif$
+    $if(date)$
+    {\normalsize\color{secondarycolor} $date$}
+    $endif$
+    \vfill
+    {\small\color{secondarycolor} 15 Projects \textperiodcentered\ 5 Phases \textperiodcentered\ 4 Languages}
+    \vspace{1cm}
+  \end{center}
+\end{titlepage}
+$endif$
+
+% --- Table of Contents ---
+\tableofcontents
+\clearpage
+
+% --- Content ---
+$body$
+
+\end{document}
