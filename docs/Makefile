@@ -43,6 +43,7 @@ SRCS := $(SRC_DIR)/00-index.md \
 
 # Combined source for single-document outputs
 COMBINED := $(OUTPUT_DIR)/combined.md
+COMBINED_HTML := $(OUTPUT_DIR)/combined-html-ready.md
 
 # Output files
 HTML_OUT := $(OUTPUT_DIR)/tutorial.html
@@ -52,10 +53,10 @@ EPUB_OUT := $(OUTPUT_DIR)/tutorial.epub
 # Templates
 HTML_TEMPLATE := $(TEMPLATE_DIR)/html.html
 
-.PHONY: all html pdf epub clean combined help
+.PHONY: all html pdf epub pages clean combined help
 
 # Default: build all
-all: html pdf epub
+all: html pdf epub pages
 
 # Combine all source files into one
 combined: $(COMBINED)
@@ -65,10 +66,13 @@ $(COMBINED): $(SRCS) | $(OUTPUT_DIR)
 	@cat $^ > $@
 	@echo "    -> $@"
 
+$(COMBINED_HTML): $(COMBINED)
+	@sed 's/\.md)/\.html)/g; s/\.md"/\.html"/g' $< > $@
+
 # ---- HTML ----
 html: $(HTML_OUT)
 
-$(HTML_OUT): $(COMBINED) | $(OUTPUT_DIR)
+$(HTML_OUT): $(COMBINED_HTML) | $(OUTPUT_DIR)
 	@echo "==> Building HTML..."
 	@cp -r $(ASSETS_DIR) $(OUTPUT_DIR)/
 	$(PANDOC) $(PANDOC_FLAGS) \
@@ -80,12 +84,58 @@ $(HTML_OUT): $(COMBINED) | $(OUTPUT_DIR)
 		-o $@ $<
 	@echo "    -> $@"
 
+# ---- Individual Pages ----
+pages: $(OUTPUT_DIR)/.pages-built
+
+$(OUTPUT_DIR)/.pages-built: $(SRCS) $(OUTPUT_DIR)/assets/css/style.css
+	@echo "==> Building individual HTML pages..."
+	@for i in $$(seq 0 $$(($(words $(SRCS)) - 1))); do \
+		src=$$(echo $(SRCS) | cut -d' ' -f$$((i+1))); \
+		name=$$(basename $$src .md); \
+		prev_idx=$$i; \
+		next_idx=$$((i + 2)); \
+		if [ $$i -gt 0 ]; then \
+			prev=$$(basename "$$(echo $(SRCS) | cut -d' ' -f$$prev_idx)" .md); \
+		else \
+			prev=""; \
+		fi; \
+		if [ $$next_idx -le $(words $(SRCS)) ]; then \
+			next=$$(basename "$$(echo $(SRCS) | cut -d' ' -f$$next_idx)" .md); \
+		else \
+			next=""; \
+		fi; \
+		sed 's/\.md)/\.html)/g; s/\.md"/\.html"/g' $$src > $(OUTPUT_DIR)/$$name.tmp.md; \
+		$(PANDOC) $(PANDOC_FLAGS) \
+			--to html5 \
+			--template=templates/page.html \
+			--css=assets/css/style.css \
+			--css=assets/css/dark.css \
+			--metadata prev="$$prev" \
+			--metadata next="$$next" \
+			--metadata title="Embedded Mastery: C, Ada, Rust & Zig" \
+			-o $(OUTPUT_DIR)/$$name.html $(OUTPUT_DIR)/$$name.tmp.md; \
+		rm -f $(OUTPUT_DIR)/$$name.tmp.md; \
+		echo "    -> $(OUTPUT_DIR)/$$name.html"; \
+	done
+	@touch $@
+
+$(OUTPUT_DIR)/assets/css/style.css: | $(OUTPUT_DIR)
+	@cp -r $(ASSETS_DIR) $(OUTPUT_DIR)/
+
 # ---- PDF ----
 pdf: $(PDF_OUT)
 
-$(PDF_OUT): $(HTML_OUT) | $(OUTPUT_DIR)
+$(PDF_OUT): $(COMBINED_HTML) | $(OUTPUT_DIR)
 	@echo "==> Building PDF (via WeasyPrint)..."
-	weasyprint file://$(CURDIR)/$< $@
+	@cp -r $(ASSETS_DIR) $(OUTPUT_DIR)/
+	@$(PANDOC) $(PANDOC_FLAGS) \
+		--to html5 \
+		--template=templates/pdf.html \
+		--css=assets/css/print.css \
+		--metadata title="Embedded Mastery: C, Ada, Rust & Zig" \
+		-o $(OUTPUT_DIR)/pdf-temp.html $<
+	@weasyprint file://$(CURDIR)/$(OUTPUT_DIR)/pdf-temp.html $@
+	@rm -f $(OUTPUT_DIR)/pdf-temp.html
 	@echo "    -> $@"
 
 # ---- EPUB ----
@@ -121,6 +171,7 @@ help:
 	@echo "  make html     Build HTML (single-page with dark/light theme)"
 	@echo "  make pdf      Build PDF (via WeasyPrint)"
 	@echo "  make epub     Build EPUB e-book"
+	@echo "  make pages    Build individual HTML pages per project"
 	@echo "  make all      Build all formats (default)"
 	@echo "  make clean    Remove generated files"
 	@echo "  make help     Show this help"
