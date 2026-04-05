@@ -55,7 +55,7 @@ EPUB_OUT := $(OUTPUT_DIR)/tutorial.epub
 # Templates
 HTML_TEMPLATE := $(TEMPLATE_DIR)/html.html
 
-.PHONY: all html pdf epub pages clean combined help search-index search-data serve
+.PHONY: all html pdf epub pages clean combined help search-index search-data serve deploy
 
 # Default: build all
 all: html pdf epub pages
@@ -203,3 +203,9 @@ help:
 serve: pages
 	@echo "==> Starting local server at http://localhost:8080"
 	@cd $(OUTPUT_DIR) && python3 -m http.server 8080
+
+# ---- Deploy (GitHub Pages) ----
+deploy: pages
+	@echo "==> Preparing for deployment..."
+	@cp $(OUTPUT_DIR)/00-index.html $(OUTPUT_DIR)/index.html
+	@echo "    -> $(OUTPUT_DIR)/index.html"
