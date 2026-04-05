@@ -6,7 +6,7 @@ project: 10
 
 # Project 10: RTOS Kernel (Minimal)
 
-In this project you will build a **preemptive RTOS kernel** from scratch for ARM Cortex-M microcontrollers. Unlike Project 7's cooperative scheduler — where tasks voluntarily yielded — this kernel will forcibly preempt lower-priority tasks when higher-priority ones become ready. You will implement mutexes with **priority inheritance**, binary and counting semaphores, message queues with ring-buffer storage, and a SysTick-driven time-slicing tick, in **C, Rust, Ada, and Zig**.
+In this project you will build a **preemptive RTOS kernel** from scratch for ARM Cortex-M4F microcontrollers (STM32F405). Unlike Project 7's cooperative scheduler — where tasks voluntarily yielded — this kernel will forcibly preempt lower-priority tasks when higher-priority ones become ready. You will implement mutexes with **priority inheritance**, binary and counting semaphores, message queues with ring-buffer storage, and a SysTick-driven time-slicing tick, in **C, Rust, Ada, and Zig**.
 
 This is the capstone concurrency project. Every production RTOS you will ever use (FreeRTOS, Zephyr, ThreadX, embOS) is built on exactly these primitives. By implementing them yourself, you will understand priority inversion, priority inheritance protocols, the difference between mutexes and semaphores, and how message queues avoid shared-memory races.
 
@@ -105,6 +105,13 @@ High address
   +------------------+
 Low address
 ```
+
+> **Cortex-M4F FPU Note:** The STM32F405 has a hardware FPU (FPv4-SP-D16). The basic context switch above saves/restores R0-R11 only, which is sufficient for integer-only tasks. If any task uses floating-point operations, the FPU registers (S0-S15, FPSCR) must also be saved and restored. The FPU status register (FPCCR) controls lazy stacking — when enabled, the hardware automatically pushes S0-S15 and FPSCR on exception entry. For a production FPU-aware context switch, you would:
+> 1. Check the EXC_RETURN[4] bit (FPCA) to determine if the task used the FPU
+> 2. If set, save/restore S0-S15 and FPSCR in addition to the integer registers
+> 3. Alternatively, disable lazy stacking and always save/restore FPU state
+> 
+> The basic context switch shown here works correctly for tasks that do not use floating point. For FPU-aware context switching, the stack layout expands to include 17 additional words (S0-S15 + FPSCR).
 
 ---
 
@@ -403,8 +410,8 @@ rtos-c/
 ```ld
 MEMORY
 {
-    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
 ENTRY(Reset_Handler)
@@ -656,8 +663,8 @@ static int should_preempt(void) {
 
 /* Start the scheduler */
 void rtos_start(void) {
-    /* SysTick: 1ms tick at 8MHz */
-    *(volatile uint32_t *)0xE000E010 = 8000 - 1;  /* LOAD */
+    /* SysTick: 1ms tick at 16MHz */
+    *(volatile uint32_t *)0xE000E010 = 16000 - 1;  /* LOAD */
     *(volatile uint32_t *)0xE000E014 = 0;          /* VAL */
     *(volatile uint32_t *)0xE000E018 = 0x7;        /* CTRL */
 
@@ -939,10 +946,10 @@ __attribute__((naked)) void PendSV_Handler(void) {
 #include "rtos.h"
 #include <stdio.h>
 
-/* GPIO for STM32F103 */
-#define RCC_APB2ENR   (*(volatile uint32_t *)0x40021018)
-#define GPIOC_CRH     (*(volatile uint32_t *)0x40011004)
-#define GPIOC_ODR     (*(volatile uint32_t *)0x4001100C)
+/* GPIO for STM32F405 */
+#define RCC_AHB1ENR   (*(volatile uint32_t *)0x40023830)
+#define GPIOA_MODER   (*(volatile uint32_t *)0x40020000)
+#define GPIOA_ODR     (*(volatile uint32_t *)0x40020014)
 
 /* Shared state for demonstration */
 static Mutex shared_mutex;
@@ -1019,10 +1026,11 @@ void task_low_worker(void *arg) {
 }
 
 int main(void) {
-    /* Enable GPIOC */
-    RCC_APB2ENR |= (1 << 4);
-    GPIOC_CRH &= ~(0xF << 20);
-    GPIOC_CRH |= (0x3 << 20);
+    /* Enable GPIOA */
+    RCC_AHB1ENR |= (1 << 0);
+    /* PA5 as output (MODER bits 11:10 = 01) */
+    GPIOA_MODER &= ~(0x3 << 10);
+    GPIOA_MODER |= (0x1 << 10);
 
     /* Initialize kernel */
     rtos_init();
@@ -1050,7 +1058,7 @@ int main(void) {
 ```makefile
 CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
-CFLAGS = -mcpu=cortex-m3 -mthumb -Os -g -Wall -Wextra -nostdlib -ffreestanding
+CFLAGS = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -g -Wall -Wextra -nostdlib -ffreestanding
 LDFLAGS = -T linker.ld
 
 all: rtos.elf rtos.bin
@@ -1062,7 +1070,7 @@ rtos.bin: rtos.elf
 	$(OBJCOPY) -O binary $< $@
 
 run: rtos.bin
-	qemu-system-arm -M stm32-f103 -kernel rtos.bin -S -s &
+	qemu-system-arm -M netduinoplus2 -kernel rtos.bin -S -s &
 
 clean:
 	rm -f rtos.elf rtos.bin
@@ -1118,7 +1126,7 @@ int main(void);
 
 ```bash
 make
-qemu-system-arm -M stm32-f103 -kernel rtos.bin -S -s &
+qemu-system-arm -M netduinoplus2 -kernel rtos.bin -S -s &
 arm-none-eabi-gdb rtos.elf
 ```
 
@@ -1165,10 +1173,10 @@ lto = true
 
 ```toml
 [build]
-target = "thumbv7m-none-eabi"
+target = "thumbv7em-none-eabihf"
 
-[target.thumbv7m-none-eabi]
-runner = "qemu-system-arm -M stm32-f103 -kernel"
+[target.thumbv7em-none-eabihf]
+runner = "qemu-system-arm -M netduinoplus2 -kernel"
 rustflags = ["-C", "link-arg=-Tlink.x"]
 ```
 
@@ -1177,8 +1185,8 @@ rustflags = ["-C", "link-arg=-Tlink.x"]
 ```
 MEMORY
 {
-    FLASH : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM : ORIGIN = 0x20000000, LENGTH = 128K
 }
 ```
 
@@ -1378,9 +1386,9 @@ fn should_preempt() -> bool {
 }
 
 fn rtos_start() -> ! {
-    /* SysTick: 1ms at 8MHz */
+    /* SysTick: 1ms at 16MHz */
     let systick = unsafe { &*cortex_m::peripheral::SYST::PTR };
-    systick.set_reload(8000 - 1);
+    systick.set_reload(16000 - 1);
     systick.clear_current();
     systick.enable_counter();
     systick.enable_interrupt();
@@ -1640,9 +1648,9 @@ fn sem_give_internal(s: &mut Semaphore) {
 }
 
 /* GPIO */
-const RCC_APB2ENR: *mut u32 = 0x4002_1018 as _;
-const GPIOC_CRH: *mut u32 = 0x4001_1004 as _;
-const GPIOC_ODR: *mut u32 = 0x4001_100C as _;
+const RCC_AHB1ENR: *mut u32 = 0x4002_3830 as _;
+const GPIOA_MODER: *mut u32 = 0x4002_0000 as _;
+const GPIOA_ODR: *mut u32 = 0x4002_0014 as _;
 
 /* Shared state */
 static SHARED_MUTEX: PriorityMutex = PriorityMutex::new();
@@ -1715,9 +1723,9 @@ fn task_low_worker(_arg: *mut ()) {
 #[entry]
 fn main() -> ! {
     unsafe {
-        (*RCC_APB2ENR) |= 1 << 4;
-        let crh = (*GPIOC_CRH).read_volatile();
-        (*GPIOC_CRH).write_volatile((crh & !(0xF << 20)) | (0x3 << 20));
+        (*RCC_AHB1ENR) |= 1 << 0;
+        let moder = (*GPIOA_MODER).read_volatile();
+        (*GPIOA_MODER).write_volatile((moder & !(0x3 << 10)) | (0x1 << 10));
     }
 
     rtos_init();
@@ -1812,7 +1820,7 @@ cargo run --release
 
 In a separate terminal:
 ```bash
-arm-none-eabi-gdb target/thumbv7m-none-eabi/release/rtos-rust
+arm-none-eabi-gdb target/thumbv7em-none-eabihf/release/rtos-rust
 (gdb) target remote :1234
 (gdb) break rtos_rust::task_sensor_reader
 (gdb) continue
@@ -1847,10 +1855,10 @@ project RTOS is
    for Target use "arm-eabi";
 
    package Compiler is
-      for Default_Switches ("Ada") use
-        ("-O2", "-g", "-mcpu=cortex-m3", "-mthumb",
-         "-fstack-check", "-gnatp", "-gnata",
-         "-gnatR", "-gnatw.e");
+       for Default_Switches ("Ada") use
+         ("-O2", "-g", "-mcpu=cortex-m4", "-mthumb", "-mfloat-abi=hard", "-mfpu=fpv4-sp-d16",
+          "-fstack-check", "-gnatp", "-gnata",
+          "-gnatR", "-gnatw.e");
    end Compiler;
 
    package Linker is
@@ -1983,21 +1991,21 @@ procedure Main is
 
    type UInt32 is mod 2**32;
 
-   RCC_APB2ENR : UInt32 with
-     Address => System'To_Address (16#4002_1018#),
-     Volatile => True;
+    RCC_AHB1ENR : UInt32 with
+      Address => System'To_Address (16#4002_3830#),
+      Volatile => True;
 
-   GPIOC_CRH : UInt32 with
-     Address => System'To_Address (16#4001_1004#),
-     Volatile => True;
+    GPIOA_MODER : UInt32 with
+      Address => System'To_Address (16#4002_0000#),
+      Volatile => True;
 
-   GPIOC_ODR : UInt32 with
-     Address => System'To_Address (16#4001_100C#),
-     Volatile => True;
+    GPIOA_ODR : UInt32 with
+      Address => System'To_Address (16#4002_0014#),
+      Volatile => True;
 
    procedure Toggle_LED is
-   begin
-      GPIOC_ODR := GPIOC_ODR xor (1 << 13);
+    begin
+       GPIOA_ODR := GPIOA_ODR xor (1 << 5);
    end Toggle_LED;
 
    -- Task 1: High-priority sensor reader (priority 10)
@@ -2102,15 +2110,15 @@ procedure Main is
    Worker : Low_Worker;
 
 begin
-   -- Enable GPIOC
-   RCC_APB2ENR := RCC_APB2ENR or (1 << 4);
+   -- Enable GPIOA
+    RCC_AHB1ENR := RCC_AHB1ENR or (1 << 0);
 
-   -- Configure PC13 as output
-   declare
-      CRH : constant UInt32 := GPIOC_CRH;
-   begin
-      GPIOC_CRH := (CRH and not (16#F# << 20)) or (16#3# << 20);
-   end;
+    -- Configure PA5 as output
+    declare
+       MODER : constant UInt32 := GPIOA_MODER;
+    begin
+       GPIOA_MODER := (MODER and not (16#3# << 10)) or (16#1# << 10);
+    end;
 
    -- Main task suspends forever — worker tasks run independently
    loop
@@ -2124,7 +2132,7 @@ end Main;
 
 ```bash
 gprbuild -P rtos.gpr
-qemu-system-arm -M stm32-f103 -kernel obj/main -S -s &
+qemu-system-arm -M netduinoplus2 -kernel obj/main -S -s &
 arm-none-eabi-gdb obj/main
 ```
 
@@ -2193,8 +2201,8 @@ pub fn build(b: *std.Build) void {
 ```ld
 MEMORY
 {
-    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
 ENTRY(Reset_Handler)
@@ -2245,7 +2253,7 @@ pub const config = struct {
     pub const stack_size: usize = 512;
     pub const msg_queue_size: usize = 16;
     pub const msg_max_size: usize = 32;
-    pub const systick_reload: u32 = 8000; // 1ms at 8MHz
+    pub const systick_reload: u32 = 16000; // 1ms at 16MHz
 };
 
 pub const TaskState = enum(u8) {
@@ -2579,7 +2587,7 @@ fn rtos_sleep(ticks: u32) void {
 }
 
 fn rtos_start() noreturn {
-    // SysTick: 1ms at 8MHz
+    // SysTick: 1ms at 16MHz
     const systick_load = @as(*volatile u32, @ptrFromInt(0xE000E010));
     const systick_val = @as(*volatile u32, @ptrFromInt(0xE000E014));
     const systick_ctrl = @as(*volatile u32, @ptrFromInt(0xE000E018));
@@ -2618,9 +2626,9 @@ fn rtos_start() noreturn {
 }
 
 // GPIO
-const RCC_APB2ENR = @as(*volatile u32, @ptrFromInt(0x40021018));
-const GPIOC_CRH = @as(*volatile u32, @ptrFromInt(0x40011004));
-const GPIOC_ODR = @as(*volatile u32, @ptrFromInt(0x4001100C));
+const RCC_AHB1ENR = @as(*volatile u32, @ptrFromInt(0x40023830));
+const GPIOA_MODER = @as(*volatile u32, @ptrFromInt(0x40020000));
+const GPIOA_ODR = @as(*volatile u32, @ptrFromInt(0x40020014));
 
 fn task_sensor_reader(arg: *anyopaque) callconv(.C) noreturn {
     _ = arg;
@@ -2823,12 +2831,12 @@ export fn Reset_Handler() callconv(.Naked) noreturn {
 }
 
 export fn main() noreturn {
-    // Enable GPIOC
-    RCC_APB2ENR.* |= (1 << 4);
+    // Enable GPIOA
+    RCC_AHB1ENR.* |= (1 << 0);
 
-    // PC13 output
-    const crh = GPIOC_CRH.*;
-    GPIOC_CRH.* = (crh & ~(@as(u32, 0xF) << 20)) | (@as(u32, 0x3) << 20);
+    // PA5 output (MODER bits 11:10 = 01)
+    const moder = GPIOA_MODER.*;
+    GPIOA_MODER.* = (moder & ~(@as(u32, 0x3) << 10)) | (@as(u32, 0x1) << 10);
 
     rtos_init();
     _ = rtos_create_task(task_sensor_reader, undefined, 1);
@@ -2851,7 +2859,7 @@ comptime {
 
 ```bash
 zig build
-qemu-system-arm -M stm32-f103 -kernel zig-out/bin/rtos -S -s &
+qemu-system-arm -M netduinoplus2 -kernel zig-out/bin/rtos -S -s &
 arm-none-eabi-gdb zig-out/bin/rtos
 ```
 
@@ -2863,7 +2871,7 @@ arm-none-eabi-gdb zig-out/bin/rtos
 
 ```bash
 # Terminal 1: Start QEMU
-qemu-system-arm -M stm32-f103 -kernel rtos.bin -S -s &
+qemu-system-arm -M netduinoplus2 -kernel rtos.bin -S -s &
 
 # Terminal 2: Connect GDB
 arm-none-eabi-gdb rtos.elf
@@ -3003,3 +3011,18 @@ $11 = 4   # priority restored to original
 - Port to a different architecture (RISC-V with CLINT/MTIME)
 - Compare your kernel's context switch overhead to FreeRTOS or Zephyr
 - Add tracing/instrumentation to visualize task state transitions
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 14: SysTick (periodic tick source), Ch. 7: RCC (clock configuration)
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: PendSV exception (designed for context switching, lowest priority), FPU context (FPCCR lazy stacking, FPCA bit in EXC_RETURN, S0-S15 + FPSCR save/restore), Ch. 8: NVIC (priority grouping)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception entry/return (full context switch sequence), B1.5: PendSV (pended while other ISRs run), B3.2: Stack alignment (8-byte alignment requirement)
+- [ARM EABI Specification (AAPCS)](https://github.com/ARM-software/abi-aa/releases) — Register preservation rules for context switch
+
+### Tools & Emulation
+- [QEMU ARM Documentation](https://www.qemu.org/docs/master/system/target-arm.html) — GDB debugging of context switches, PSP inspection
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — netduinoplus2 machine

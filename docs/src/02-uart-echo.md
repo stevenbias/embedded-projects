@@ -26,9 +26,9 @@ You will implement a UART echo server that receives characters and immediately t
 
 | Property        | Value                              |
 |-----------------|------------------------------------|
-| Board           | Netduino Plus 2                    |
-| MCU             | STM32F205                          |
-| Core            | ARM Cortex-M3                      |
+| Board           | Netduino Plus 2 (QEMU) / NUCLEO-F446RE (HW) |
+| MCU             | STM32F405 / STM32F446              |
+| Core            | ARM Cortex-M4F                     |
 | UART Peripheral | USART2                             |
 | TX Pin          | PA2 (Alternate Function 7)         |
 | RX Pin          | PA3 (Alternate Function 7)         |
@@ -52,7 +52,7 @@ For this project, we use the most common configuration: **8 data bits, no parity
 
 ### Baud Rate Calculation
 
-The STM32F2 USART baud rate is determined by:
+The STM32F4 USART baud rate is determined by:
 
 ```
 USARTDIV = f_ck / (8 * (2 - OVER8) * baud)
@@ -136,7 +136,7 @@ The linker script and startup assembly are identical to Project 1. Only `main.c`
 ### `main.c`
 
 ```c
-/* main.c — UART echo server for STM32F205 (polling) */
+/* main.c — UART echo server for STM32F405 (polling) */
 
 #include <stdint.h>
 
@@ -245,13 +245,13 @@ int main(void)
 ### `Makefile`
 
 ```makefile
-# Makefile — UART Echo Server (C / STM32F205)
+# Makefile — UART Echo Server (C / STM32F405)
 
 CC      = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
 SIZE    = arm-none-eabi-size
 
-CFLAGS  = -mcpu=cortex-m3 -mthumb -Os -Wall -Wextra -ffreestanding -nostdlib
+CFLAGS  = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -Wall -Wextra -ffreestanding -nostdlib
 
 TARGET  = uart-echo
 SRCS    = main.c startup.s
@@ -326,9 +326,9 @@ debug = true
 
 ```toml
 [build]
-target = "thumbv7m-none-eabi"
+target = "thumbv7em-none-eabihf"  # Cortex-M4F
 
-[target.thumbv7m-none-eabi]
+[target.thumbv7em-none-eabihf]
 runner = "qemu-system-arm -machine netduinoplus2 -serial mon:stdio -nographic -kernel"
 rustflags = [
   "-C", "link-arg=-Tlink.x",
@@ -402,7 +402,7 @@ const USART_CR1_TE: u32   = 1 << 3;
 const USART_CR1_RE: u32   = 1 << 2;
 const USART_CR1_RXNEIE: u32 = 1 << 5;
 
-const USART2_IRQ: u32 = 38; // IRQ number for USART2 in STM32F2
+const USART2_IRQ: u32 = 38; // IRQ number for USART2 in STM32F4
 
 /* Shared receive buffer protected by a critical section mutex */
 static RX_BYTE: Mutex<RefCell<Option<u8>>> = Mutex::new(RefCell::new(None));
@@ -501,7 +501,7 @@ fn HardFault(_frame: &ExceptionFrame) -> ! {
 ### Build (Rust)
 
 ```bash
-rustup target add thumbv7m-none-eabi
+rustup target add thumbv7em-none-eabihf
 cargo build --release
 ```
 
@@ -516,8 +516,8 @@ uart-echo-ada/
 ├── startup.adb
 ├── main.adb
 ├── main.ads
-├── stm32f2_uart.ads
-└── stm32f2_uart.adb
+├── stm32f4_uart.ads
+└── stm32f4_uart.adb
 ```
 
 ### Project File (`uart_echo.gpr`)
@@ -526,7 +526,7 @@ uart-echo-ada/
 project Uart_Echo is
 
    for Target use "arm-eabi";
-   for Runtime use "ravenscar-sfp-stm32f2";
+   for Runtime use "ravenscar-sfp-stm32f4";
 
    for Source_Dirs use (".");
    for Object_Dir use "obj";
@@ -537,8 +537,10 @@ project Uart_Echo is
          "-O2",
          "-g",
          "-fstack-check",
-         "-mcpu=cortex-m3",
-         "-mthumb"
+          "-mcpu=cortex-m4",
+          "-mthumb",
+          "-mfloat-abi=hard",
+          "-mfpu=fpv4-sp-d16"
       );
    end Compiler;
 
@@ -552,12 +554,12 @@ project Uart_Echo is
 end Uart_Echo;
 ```
 
-### UART Package Spec (`stm32f2_uart.ads`)
+### UART Package Spec (`stm32f4_uart.ads`)
 
 ```ada
 with Interfaces; use Interfaces;
 
-package STM32F2_UART is
+package STM32F4_UART is
    pragma Preelaborate;
 
    type UInt32 is mod 2 ** 32;
@@ -605,15 +607,15 @@ private
 
    BRR_115200 : constant UInt32 := 16#8B#;
 
-end STM32F2_UART;
+end STM32F4_UART;
 ```
 
-### UART Package Body (`stm32f2_uart.adb`)
+### UART Package Body (`stm32f4_uart.adb`)
 
 ```ada
 with System; use System;
 
-package body STM32F2_UART is
+package body STM32F4_UART is
 
    function To_Reg_Ptr (Addr : System.Address) return Reg_Ptr is
       Result : Reg_Ptr;
@@ -689,16 +691,14 @@ package body STM32F2_UART is
    function UART_Data_Ready return Boolean is
       USART2_SR : Reg_Ptr := To_Reg_Ptr (USART2_SR_Addr'Address);
    begin
-      return (USART2_SR.all and RXNE) /= 0;
-   end UART_Data_Ready;
-
-end STM32F2_UART;
+   return (USART2_SR.all and RXNE) /= 0;
+end STM32F4_UART;
 ```
 
 ### `main.adb`
 
 ```ada
-with STM32F2_UART; use STM32F2_UART;
+with STM32F4_UART; use STM32F4_UART;
 
 procedure Main is
    C : Character;
@@ -754,9 +754,9 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .thumb,
-        .cpu_model = .{ .explicit = &std.Target.arm.cpu.cortex_m3 },
+        .cpu_model = .{ .explicit = &std.Target.arm.cpu.cortex_m4 },
         .os_tag = .freestanding,
-        .abi = .eabi,
+        .abi = .eabihf,
     });
 
     const optimize = b.standardOptimizeOption(.{});
@@ -780,7 +780,7 @@ pub fn build(b: *std.Build) void {
 ### `src/main.zig`
 
 ```zig
-// main.zig — UART echo server for STM32F205 (polling with error unions)
+// main.zig — UART echo server for STM32F405 (polling with error unions)
 
 const std = @import("std");
 
@@ -966,3 +966,18 @@ arm-none-eabi-gdb uart-echo.elf
 Your MCU can now talk to the outside world. In [Project 3: Button Interrupts & Debouncing](03-button-interrupts.md), you will add user input via a hardware button — learning EXTI configuration, NVIC interrupt priorities, software debouncing, and how each language handles atomic state and critical sections.
 
 > **Tip:** Before moving on, try extending the echo server: add a simple command parser that recognizes commands like `help`, `status`, or `led on`/`led off` to control the LED from Project 1 over UART.
+
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 30: USART (BRR, SR, CR1, DR), Ch. 8: GPIO (AFRL, alternate function AF7)
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf)
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — NVIC interrupt enable for USART2 (IRQ 38), exception priorities
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/)
+
+### Tools & Emulation
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html)

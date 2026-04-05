@@ -668,6 +668,193 @@ w25q_error_t w25q_read_verified(w25q_handle_t *dev, uint32_t addr,
 }
 ```
 
+#### Hardware Initialization (`hw_init.c`)
+
+```c
+/* STM32F405 GPIO + RCC initialization for SPI1 */
+
+/* RCC base address (STM32F4) */
+#define RCC_BASE        0x40023800UL
+#define RCC_AHB1ENR     (*(volatile uint32_t *)(RCC_BASE + 0x30))
+
+/* GPIO base addresses (STM32F4: AHB1 bus) */
+#define GPIOA_BASE      0x48000000UL
+#define GPIOC_BASE      0x48000800UL
+
+#define GPIO_MODER      (*(volatile uint32_t *)(GPIOA_BASE + 0x00))
+#define GPIO_OTYPER     (*(volatile uint32_t *)(GPIOA_BASE + 0x04))
+#define GPIO_OSPEEDR    (*(volatile uint32_t *)(GPIOA_BASE + 0x08))
+#define GPIO_PUPDR      (*(volatile uint32_t *)(GPIOA_BASE + 0x0C))
+#define GPIO_AFRL       (*(volatile uint32_t *)(GPIOA_BASE + 0x20))
+
+/* SPI1 alternate function = AF5 on STM32F4 */
+#define GPIO_AF_SPI1    5
+
+void hw_init(void) {
+    /* Enable GPIOA clock (bit 0 of AHB1ENR) */
+    /* Enable GPIOC clock (bit 2 of AHB1ENR) */
+    RCC_AHB1ENR |= (1U << 0) | (1U << 2);
+
+    /* PA5 = SPI1_SCK: alternate function, push-pull, fast speed, pull-down */
+    /* PA6 = SPI1_MISO: alternate function, push-pull, fast speed, pull-down */
+    /* PA7 = SPI1_MOSI: alternate function, push-pull, fast speed, pull-down */
+
+    /* MODER: set pin 5,6,7 to alternate function (10) */
+    GPIO_MODER &= ~((0x3U << 10) | (0x3U << 12) | (0x3U << 14));
+    GPIO_MODER |=  (0x2U << 10) | (0x2U << 12) | (0x2U << 14);
+
+    /* OTYPER: push-pull (0) — default */
+    /* OSPEEDR: fast speed (10) */
+    GPIO_OSPEEDR &= ~((0x3U << 10) | (0x3U << 12) | (0x3U << 14));
+    GPIO_OSPEEDR |=  (0x2U << 10) | (0x2U << 12) | (0x2U << 14);
+
+    /* PUPDR: pull-down (10) for SPI pins */
+    GPIO_PUPDR &= ~((0x3U << 10) | (0x3U << 12) | (0x3U << 14));
+    GPIO_PUPDR |=  (0x2U << 10) | (0x2U << 12) | (0x2U << 14);
+
+    /* AFRL: set AF5 for pins 5, 6, 7 (4 bits each) */
+    GPIO_AFRL &= ~((0xFU << 20) | (0xFU << 24) | (0xFU << 28));
+    GPIO_AFRL |=  ((GPIO_AF_SPI1 << 20) | (GPIO_AF_SPI1 << 24) | (GPIO_AF_SPI1 << 28));
+
+    /* PC4 = CS: output, push-pull, fast speed, pull-up */
+    /* MODER: set pin 4 to output (01) */
+    GPIO_MODER &= ~(0x3U << 8);
+    GPIO_MODER |=  (0x1U << 8);
+
+    /* Deassert CS (high) */
+    (*(volatile uint32_t *)(GPIOC_BASE + 0x14)) |= (1U << 4);
+}
+```
+
+#### Linker Script (`stm32f405.ld`)
+
+```ld
+/* STM32F405RG — 1024K flash, 128K RAM */
+MEMORY
+{
+    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 128K
+}
+
+SECTIONS
+{
+    .text :
+    {
+        KEEP(*(.isr_vector))
+        *(.text*)
+        *(.rodata*)
+    } > FLASH
+
+    .data :
+    {
+        _sdata = .;
+        *(.data*)
+        _edata = .;
+    } > RAM AT > FLASH
+
+    _sidata = LOADADDR(.data);
+
+    .bss :
+    {
+        _sbss = .;
+        *(.bss*)
+        *(COMMON)
+        _ebss = .;
+    } > RAM
+}
+```
+
+#### Startup Assembly (`startup_stm32f405xx.s`)
+
+```asm
+    .syntax unified
+    .cpu cortex-m4
+    .fpu softvfp
+    .thumb
+
+.global g_pfnVectors
+.global Default_Handler
+
+g_pfnVectors:
+    .word _estack
+    .word Reset_Handler
+    .word NMI_Handler
+    .word HardFault_Handler
+    .word MemManage_Handler
+    .word BusFault_Handler
+    .word UsageFault_Handler
+    .word 0
+    .word 0
+    .word 0
+    .word 0
+    .word SVC_Handler
+    .word DebugMon_Handler
+    .word 0
+    .word PendSV_Handler
+    .word SysTick_Handler
+
+Reset_Handler:
+    /* Copy .data from flash to RAM */
+    ldr r0, =_sidata
+    ldr r1, =_sdata
+    ldr r2, =_edata
+    b copy_data_loop_check
+copy_data_loop:
+    ldr r3, [r0], #4
+    str r3, [r1], #4
+copy_data_loop_check:
+    cmp r1, r2
+    blt copy_data_loop
+
+    /* Zero .bss */
+    ldr r0, =_sbss
+    ldr r1, =_ebss
+    movs r2, #0
+    b zero_bss_loop_check
+zero_bss_loop:
+    str r2, [r0], #4
+zero_bss_loop_check:
+    cmp r0, r1
+    blt zero_bss_loop
+
+    /* Call hw_init then main */
+    bl hw_init
+    bl main
+    b .
+
+.size g_pfnVectors, .-g_pfnVectors
+
+.weak NMI_Handler
+.thumb_set NMI_Handler, Default_Handler
+
+.weak HardFault_Handler
+.thumb_set HardFault_Handler, Default_Handler
+
+.weak MemManage_Handler
+.thumb_set MemManage_Handler, Default_Handler
+
+.weak BusFault_Handler
+.thumb_set BusFault_Handler, Default_Handler
+
+.weak UsageFault_Handler
+.thumb_set UsageFault_Handler, Default_Handler
+
+.weak SVC_Handler
+.thumb_set SVC_Handler, Default_Handler
+
+.weak DebugMon_Handler
+.thumb_set DebugMon_Handler, Default_Handler
+
+.weak PendSV_Handler
+.thumb_set PendSV_Handler, Default_Handler
+
+.weak SysTick_Handler
+.thumb_set SysTick_Handler, Default_Handler
+
+Default_Handler:
+    b .
+```
+
 #### Main Application (`main.c`)
 
 ```c
@@ -681,14 +868,14 @@ static w25q_handle_t flash;
 /* Platform-specific CS control */
 void w25q_cs_assert(w25q_handle_t *dev) {
     (void)dev;
-    /* GPIOA Pin 4 low */
-    /* *(volatile uint32_t *)0x4001080C &= ~(1U << 4); */
+    /* GPIOA Pin 4 low (STM32F4: GPIOA ODR at 0x48000014) */
+    /* *(volatile uint32_t *)0x48000014 &= ~(1U << 4); */
 }
 
 void w25q_cs_deassert(w25q_handle_t *dev) {
     (void)dev;
     /* GPIOA Pin 4 high */
-    /* *(volatile uint32_t *)0x4001080C |= (1U << 4); */
+    /* *(volatile uint32_t *)0x48000014 |= (1U << 4); */
 }
 
 int main(void) {
@@ -1868,12 +2055,12 @@ pub fn main() !void {
 
 ```bash
 # Build
-arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -O2 \
+arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O2 \
     -fno-common -ffunction-sections -fdata-sections \
     -Wall -Wextra -Werror \
-    -T stm32f103c8.ld \
+    -T stm32f405.ld \
     -o w25q.elf \
-    main.c spi.c w25q.c crc32.c startup_stm32f103xb.c
+    main.c spi.c w25q.c crc32.c startup_stm32f405xx.c
 
 arm-none-eabi-objcopy -O binary w25q.elf w25q.bin
 arm-none-eabi-size w25q.elf
@@ -1882,8 +2069,8 @@ arm-none-eabi-size w25q.elf
 ### Rust
 
 ```bash
-rustup target add thumbv7m-none-eabi
-cargo build --release --target thumbv7m-none-eabi
+rustup target add thumbv7em-none-eabihf
+cargo build --release --target thumbv7em-none-eabihf
 ```
 
 ### Ada
@@ -1896,7 +2083,7 @@ gprbuild -P w25q.gpr -XTARGET=arm-elf -O2
 
 ```bash
 # Bare-metal ARM
-zig build-exe main.zig -target thumbv7m-freestanding -OReleaseSmall
+zig build-exe main.zig -target thumbv7em-freestanding-eabihf -OReleaseSmall
 
 # Host testing
 zig build-exe main.zig -OReleaseFast
@@ -1908,7 +2095,7 @@ zig build-exe main.zig -OReleaseFast
 
 ```bash
 # QEMU supports m25p80 flash model (compatible with W25Q)
-qemu-system-arm -M stm32f4-discovery \
+qemu-system-arm -M netduinoplus2 \
     -drive if=mtd,format=raw,file=flash_image.bin \
     -kernel w25q.elf \
     -semihosting \
@@ -1994,3 +2181,20 @@ Expected SPI transaction trace:
 - [ ] CRC32 lookup table and verification
 - [ ] QEMU/Renode simulation showing SPI transactions
 - [ ] Output: JEDEC ID, written data, read-back data, CRC32 match confirmation
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 28: SPI (CR1, CR2, SR, DR), Ch. 8: GPIO (AF5 for SPI1 on PA5/PA6/PA7)
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — SPI pin assignments, alternate function mapping
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Memory model for SPI register access
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Memory barriers for SPI synchronization
+
+### Flash Memory Documentation
+- [W25Q64JV Datasheet (Winbond)](https://www.winbond.com/resource-files/w25q64jv%20revj%2003272018%20plus.pdf) — Command set (0x03, 0x02, 0x20, 0x9F, 0x06, 0x05), page/sector/block geometry, JEDEC ID
+
+### Tools & Emulation
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — SPI peripheral simulation limitations
+- [Renode Documentation](https://docs.renode.io/) — SPI flash peripheral simulation

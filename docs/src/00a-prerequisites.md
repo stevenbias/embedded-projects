@@ -68,17 +68,12 @@ cargo --version
 
 ### Install Embedded Targets
 
-This course targets three ARM Cortex-M variants:
+This course targets a single ARM Cortex-M4F variant:
 
 ```bash
-# Cortex-M3 (STM32F1, used in most projects)
-rustup target add thumbv7m-none-eabi
-
-# Cortex-M4F with FPU (STM32F4, used in advanced projects)
+# Cortex-M4F with FPU (STM32F4 — primary target for all projects)
+# Used on both QEMU (netduinoplus2 / STM32F405) and real hardware (NUCLEO-F446RE / STM32F446)
 rustup target add thumbv7em-none-eabihf
-
-# Cortex-M0+ (STM32L0, used in low-power projects)
-rustup target add thumbv6m-none-eabi
 ```
 
 ### Verify Targets
@@ -86,9 +81,7 @@ rustup target add thumbv6m-none-eabi
 ```bash
 rustup target list --installed
 # Should include:
-#   thumbv7m-none-eabi
 #   thumbv7em-none-eabihf
-#   thumbv6m-none-eabi
 ```
 
 ### Install Cargo Tools
@@ -223,8 +216,8 @@ zig version
 # Zig includes cross-compilation out of the box — no target installation needed
 zig build-exe --help | grep "target"
 
-# Test cross-compilation for ARM Cortex-M3
-zig build-exe -lc -target arm-freestanding-eabihf -mcpu cortex_m3 --verbose
+# Test cross-compilation for ARM Cortex-M4F
+zig build-exe -lc -target arm-freestanding-eabihf -mcpu cortex_m4 --verbose
 ```
 
 > **Tip:** Zig's built-in cross-compilation is one of its strongest features. You never need to install separate cross-compilers — Zig bundles everything.
@@ -343,6 +336,25 @@ chmod +x verify-toolchains.sh
 
 ---
 
+## Target Hardware
+
+This course is designed to work in **emulation** (QEMU) and on **real hardware** with identical code.
+
+| Property | QEMU (Primary) | Real Hardware |
+|---|---|---|
+| Board | Netduino Plus 2 | NUCLEO-F446RE |
+| MCU | STM32F405RGT6 | STM32F446RET6 |
+| Core | Cortex-M4F | Cortex-M4F |
+| Flash | 1 MiB | 512 KiB |
+| SRAM | 128 KiB | 128 KiB |
+| QEMU Machine | `netduinoplus2` | N/A (flashed via ST-Link) |
+
+Both MCUs are in the STM32F4 family and share the same peripheral architecture (GPIO, USART, SPI, I2C, timers, etc.). Code written for one runs on the other with only a pin configuration header swap.
+
+> **Note:** You do **not** need physical hardware to complete this course. All projects run in QEMU. The NUCLEO-F446RE (~$20-25) is recommended if you want to test on real silicon — it has an on-board ST-Link debugger, Arduino headers, and is widely available.
+
+---
+
 ## Troubleshooting
 
 ### ARM GCC: "command not found"
@@ -363,7 +375,7 @@ echo $PATH | tr ':' '\n' | grep arm
 This means the embedded target is not installed:
 
 ```bash
-rustup target add thumbv7m-none-eabi
+rustup target add thumbv7em-none-eabihf
 ```
 
 ### Rust: "cargo size" fails
@@ -428,3 +440,22 @@ With all toolchains installed and verified, proceed to:
 2. **[Project 1: LED Blinker](01-led-blinker.md)** — Your first embedded project in all 4 languages
 
 > **Tip:** Before starting Project 1, run the verification script above and ensure every tool reports a valid version. Future projects assume a working toolchain.
+
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Complete peripheral reference for STM32F4 family
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Pin assignments, memory sizes, electrical characteristics
+- [NUCLEO-F446RE Documentation](https://www.st.com/en/evaluation-tools/nucleo-f446re.html) — Board schematics, user manual, ST-Link/V2-1 details
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Processor architecture, FPU, NVIC, SysTick
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Exception model, memory ordering, instruction set
+
+### Tools & Emulation
+- [QEMU ARM Documentation](https://www.qemu.org/docs/master/system/target-arm.html) — qemu-system-arm usage, GDB stub, semihosting
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — netduinoplus2 machine, supported peripherals
+- [Renode Documentation](https://docs.renode.io/) — Multi-node simulation, bus analyzers, peripheral models
+- [ARM EABI Specification (IHI 0045)](https://github.com/ARM-software/abi-aa/releases) — Procedure call standard, stack alignment, calling conventions

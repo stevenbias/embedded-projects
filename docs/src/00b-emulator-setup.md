@@ -33,12 +33,10 @@ QEMU is the primary emulator for this course. It supports ARM Cortex-M3/M4/M0+ w
 
 | Board | QEMU Machine | CPU | Why This Board |
 |---|---|---|---|
-| **Netduino Plus 2** | `netduinoplus2` | STM32F405 (Cortex-M4F) | FPU support, good peripheral set, used in advanced projects |
-| **STM32F103 (Blue Pill)** | `stm32f103` (via `virt` or custom) | STM32F103 (Cortex-M3) | Most common hobbyist board, matches our primary target |
-| **Raspberry Pi 2** | `raspi2` | BCM2836 (Cortex-A7) | Application processor projects, Linux-capable |
-| **Virt** | `virt` | Configurable (Cortex-M3/M4) | Generic machine, flexible for custom setups |
+| **Netduino Plus 2** | `netduinoplus2` | STM32F405 (Cortex-M4F) | Primary QEMU target — same STM32F4 family as our real hardware |
+| **Virt** | `virt` | Configurable (Cortex-M3/M4) | Generic fallback when netduinoplus2 lacks a peripheral |
 
-> **Tip:** For this course, we primarily use `netduinoplus2` (Cortex-M4F) and the `virt` machine configured for Cortex-M3. The Blue Pill (`stm32f103`) has limited QEMU support — we use workarounds noted per project.
+> **Tip:** All projects target `netduinoplus2` in QEMU. The `virt` machine is only used as a fallback for peripherals not simulated on netduinoplus2 (CAN, I2C, USB).
 
 ---
 
@@ -47,11 +45,8 @@ QEMU is the primary emulator for this course. It supports ARM Cortex-M3/M4/M0+ w
 ### Running Firmware (ELF)
 
 ```bash
-# Run an ELF file on Netduino Plus 2
+# Run an ELF file on Netduino Plus 2 (primary target)
 qemu-system-arm -M netduinoplus2 -kernel firmware.elf
-
-# Run on virt machine with Cortex-M3
-qemu-system-arm -M virt -cpu cortex-m3 -kernel firmware.elf
 
 # Run with serial output to terminal
 qemu-system-arm -M netduinoplus2 -kernel firmware.elf -nographic
@@ -281,25 +276,100 @@ renode --disable-xwt
 
 ---
 
-## Emulator Compatibility
+## Real Hardware: NUCLEO-F446RE
 
-| Project | QEMU | Renode | Notes |
-|---|---|---|---|
-| 1: LED Blinker | Full | Full | GPIO LED simulation works on both |
-| 2: Button & Interrupts | Full | Full | EXTI/NVIC fully supported |
-| 3: UART Console | Full | Full | Serial output to host terminal |
-| 4: PWM & Servo | Partial | Full | QEMU timer works; Renode has better PWM visualization |
-| 5: I2C Sensor | Partial | Full | QEMU has limited I2C; use Renode with BMP280 model |
-| 6: SPI Display | Partial | Partial | Framebuffer visible in QEMU; Renode has display model |
-| 7: Bootloader | Full | Full | Flash emulation works on both |
-| 8: RTOS Scheduler | Full | Full | No peripheral dependency |
-| 9: CAN Bus | Partial | Full | QEMU CAN support is limited; use Renode |
-| 10: Motor Controller | Partial | Full | Encoder simulation better in Renode |
-| 11: Sensor Fusion | Partial | Full | Multi-sensor I2C/SPI requires Renode |
-| 12: Wireless Mesh | Workaround | Workaround | Simulate UART-connected radios on both |
-| 13: Secure Boot | Full | Full | Crypto algorithms are CPU-only |
-| 14: OTA Updates | Full | Full | Flash emulation works on both |
-| 15: IoT Device | Partial | Full | Full integration best in Renode |
+While QEMU is the primary development environment, all projects also run on real hardware. The **NUCLEO-F446RE** is recommended:
+
+| Property | Value |
+|---|---|
+| Board | NUCLEO-F446RE (STM32 Nucleo-64) |
+| MCU | STM32F446RET6 |
+| Core | Cortex-M4F (180 MHz, FPU) |
+| Flash | 512 KiB |
+| SRAM | 128 KiB |
+| On-board debugger | ST-Link/V2-1 |
+| Connectivity | Arduino headers, ST Morpho, USB VCP |
+| Price | ~$20-25 |
+
+### Why NUCLEO-F446RE?
+
+- **Same family as QEMU target** — STM32F446 is in the STM32F4 family, sharing the same GPIO model (`MODER/OTYPER/AFR`), peripheral architecture, and register layout as the STM32F405 used in `netduinoplus2`
+- **On-board ST-Link** — no external debugger needed; flash and debug via USB
+- **Arduino headers** — easy to connect shields, sensors, and modules
+- **Widely available** — sold by ST directly, Digi-Key, Mouser, and all major distributors
+
+### Pin Mapping: QEMU vs NUCLEO-F446RE
+
+Both boards share the same LED pin (PA5) and USART2 pins (PA2/PA3). For projects that use different pins, swap the pin definitions in the hardware config header:
+
+```c
+/* hw_config.h — Pin definitions */
+#ifdef QEMU_NETDUINO
+  #define LED_PIN         5       /* PA5 */
+  #define LED_GPIO_PORT   GPIOA
+  #define USART_TX_PIN    2       /* PA2 */
+  #define USART_RX_PIN    3       /* PA3 */
+#else /* NUCLEO-F446RE */
+  #define LED_PIN         5       /* PA5 — same as QEMU! */
+  #define LED_GPIO_PORT   GPIOA
+  #define USART_TX_PIN    2       /* PA2 — same as QEMU! */
+  #define USART_RX_PIN    3       /* PA3 — same as QEMU! */
+#endif
+```
+
+### Flashing with ST-Link
+
+```bash
+# Install stlink-tools
+sudo apt install stlink-tools
+
+# Flash ELF binary
+st-flash write firmware.bin 0x08000000
+
+# Or use OpenOCD
+openocd -f interface/stlink.cfg -f target/stm32f4x.cfg \
+    -c "program firmware.elf verify reset exit"
+
+# Or use probe-rs (Rust ecosystem)
+probe-rs download --chip STM32F446RETx firmware.elf
+```
+
+### Debugging with GDB + ST-Link
+
+```bash
+# Terminal 1: Start OpenOCD
+openocd -f interface/stlink.cfg -f target/stm32f4x.cfg
+
+# Terminal 2: Connect with GDB
+gdb-multiarch firmware.elf
+(gdb) target remote :3333
+(gdb) break main
+(gdb) continue
+```
+
+> **Note:** QEMU's peripheral simulation is limited (see table below). Projects using I2C, CAN, USB, and SPI flash benefit significantly from real hardware testing.
+
+---
+
+## Emulator & Hardware Compatibility
+
+| Project | QEMU | Renode | Real HW | Notes |
+|---|---|---|---|---|
+| 1: LED Blinker | Full | Full | Full | GPIO LED simulation works on all |
+| 2: UART Echo | Full | Full | Full | USART2 on PA2/PA3, identical on QEMU and NUCLEO |
+| 3: Button Interrupts | Full | Full | Full | EXTI/NVIC fully supported; button simulated via QOM |
+| 4: I2C Sensor | Partial | Full | Full | QEMU has limited I2C; use Renode or real HW for BMP280 |
+| 5: SPI Flash | Partial | Full | Full | SPI controller simulated; flash chip needs real HW or Renode |
+| 6: PWM Motor | Full | Full | Full | Timer PWM generation works in QEMU |
+| 7: Cooperative Scheduler | Full | Full | Full | SysTick timer fully supported |
+| 8: Ring Buffer | Full | Full | Full | USART interrupt-driven I/O works in QEMU |
+| 9: Bootloader | Full | Full | Full | Flash emulation works; sector erase differs on real HW |
+| 10: RTOS Kernel | Full | Full | Full | Context switch, FPU save/restore tested in QEMU |
+| 11: CAN Bus | None | Full | Full | QEMU does not simulate bxCAN; use Renode or real HW |
+| 12: Data Logger | Partial | Full | Full | SD card via SPI needs real HW or Renode |
+| 13: USB CDC | None | Partial | Full | QEMU does not simulate USB OTG; real HW required |
+| 14: PID Motor | Full | Full | Full | PID algorithm is CPU-only; PWM output tested in QEMU |
+| 15: Safety Critical | Full | Full | Full | MPU, stack canaries, MISRA-C — all testable in QEMU |
 
 ### Legend
 
@@ -330,6 +400,23 @@ In Rust (using `semihosting` crate):
 ```rust
 use semihosting::println;
 println!("Hello from semihosting!");
+```
+
+In Ada (using GNAT `ARM_Semihosting`):
+```ada
+with ARM_Semihosting; use ARM_Semihosting;
+procedure Main is
+begin
+   Write_Console ("Hello from semihosting!" & ASCII.LF);
+end Main;
+```
+
+In Zig (using `std.debug`):
+```zig
+const std = @import("std");
+pub fn main() void {
+    std.debug.print("Hello from semihosting!\n", .{});
+}
 ```
 
 ### 2. GDB Watchpoints for Peripheral Debugging
@@ -413,7 +500,7 @@ qemu-system-arm -M netduinoplus2 -kernel firmware.elf \
     -accel tcg,thread=multi
 
 # Skip unused peripherals for faster boot
-qemu-system-arm -M virt -cpu cortex-m3 -kernel firmware.elf \
+qemu-system-arm -M netduinoplus2 -kernel firmware.elf \
     -no-reboot -nographic
 ```
 
@@ -421,9 +508,30 @@ qemu-system-arm -M virt -cpu cortex-m3 -kernel firmware.elf \
 
 ## What's Next?
 
-With QEMU and Renode configured, you're ready to start building:
+With QEMU and Renode configured, you're ready to master debugging:
 
-1. **[Project 1: LED Blinker](01-led-blinker.md)** — Your first bare-metal project
-2. Review the [full project roadmap](00-index.md) for the complete course plan
+1. **[GDB Survival Guide](00c-gdb-survival-guide.md)** — Quick reference and detailed workflows for embedded debugging
+2. **[Project 1: LED Blinker](01-led-blinker.md)** — Your first bare-metal project
+3. Review the [full project roadmap](00-index.md) for the complete course plan
 
 > **Tip:** Before starting Project 1, verify that `qemu-system-arm` runs a simple ELF file successfully. This confirms your entire toolchain is working end-to-end.
+
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Complete peripheral reference for STM32F4 family
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Pin assignments, memory sizes, electrical characteristics
+- [NUCLEO-F446RE Documentation](https://www.st.com/en/evaluation-tools/nucleo-f446re.html) — Board schematics, user manual, ST-Link/V2-1 details
+- [ST-Link Documentation](https://www.st.com/en/development-tools/st-link-v2.html) — ST-Link/V2-1 programmer and debugger
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Processor architecture, FPU, NVIC, SysTick
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Exception model, memory ordering, instruction set
+
+### Tools & Emulation
+- [QEMU ARM Documentation](https://www.qemu.org/docs/master/system/target-arm.html) — qemu-system-arm usage, GDB stub, semihosting
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — netduinoplus2 machine, supported peripherals
+- [Renode Documentation](https://docs.renode.io/) — Multi-node simulation, bus analyzers, peripheral models
+- [GDB Embedded Guide](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Embedded-Processors.html) — Remote debugging, watchpoints, memory examination

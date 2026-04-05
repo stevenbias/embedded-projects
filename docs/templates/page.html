@@ -15,6 +15,8 @@ $endif$
   <link rel="stylesheet" href="assets/css/style.css">
   <link rel="stylesheet" href="assets/css/dark.css" id="dark-style" disabled>
   <link rel="stylesheet" href="assets/css/print.css" media="print">
+  <script src="assets/js/search-data.js"></script>
+  <script src="assets/js/search.js" defer></script>
 $if(math)$
   $math$
 $endif$
@@ -68,6 +70,7 @@ $endfor$
           <li><a href="00-index.html">Overview & Roadmap</a></li>
           <li><a href="00a-prerequisites.html">Toolchain Setup</a></li>
           <li><a href="00b-emulator-setup.html">Emulator Setup</a></li>
+          <li><a href="00c-gdb-survival-guide.html">GDB Survival Guide</a></li>
         </ul>
       </div>
 
@@ -115,6 +118,11 @@ $endfor$
           <li><a href="15-safety-critical.html">15. Safety-Critical</a></li>
         </ul>
       </div>
+
+      <div class="sidebar-section sidebar-toc" id="sidebar-toc" style="display: none;">
+        <h3>On This Page</h3>
+        <ul id="toc-list"></ul>
+      </div>
     </div>
   </nav>
 
@@ -124,6 +132,10 @@ $endfor$
     <header id="topbar">
       <button id="sidebar-toggle" aria-label="Open navigation">&#9776;</button>
       <span class="topbar-title">$if(title)$$title$$else$Embedded Mastery$endif$</span>
+      <div class="topbar-search">
+        <input type="text" id="search-input" placeholder="Search docs…" autocomplete="off" aria-label="Search documentation">
+        <div id="search-results" class="search-results" style="display: none;"></div>
+      </div>
       <button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">🌙</button>
     </header>
 
@@ -212,12 +224,76 @@ $endif$
 
     const currentPage = window.location.pathname.split('/').pop();
     if (currentPage) {
-      const links = document.querySelectorAll('#sidebar a');
+      const links = document.querySelectorAll('#sidebar a:not(#toc-list a)');
       links.forEach(link => {
         if (link.getAttribute('href') === currentPage) {
           link.classList.add('active');
         }
       });
+    }
+
+    // --- On This Page: dynamic TOC from h2/h3 headings ---
+    const article = document.getElementById('main-article');
+    if (article) {
+      const headings = article.querySelectorAll('h2, h3');
+      const tocContainer = document.getElementById('sidebar-toc');
+      const tocList = document.getElementById('toc-list');
+
+      if (headings.length > 0 && tocContainer && tocList) {
+        tocContainer.style.display = 'block';
+
+        headings.forEach((h, i) => {
+          // Ensure each heading has an id for anchor linking
+          if (!h.id) {
+            h.id = 'section-' + i;
+          }
+
+          const li = document.createElement('li');
+          const a = document.createElement('a');
+          a.href = '#' + h.id;
+          a.textContent = h.textContent;
+          a.dataset.target = h.id;
+
+          if (h.tagName === 'H3') {
+            a.classList.add('toc-h3');
+          }
+
+          a.addEventListener('click', function(e) {
+            e.preventDefault();
+            const target = document.getElementById(this.dataset.target);
+            if (target) {
+              target.scrollIntoView({ behavior: 'smooth', block: 'start' });
+              // Update URL hash without jumping
+              history.pushState(null, null, '#' + this.dataset.target);
+            }
+          });
+
+          li.appendChild(a);
+          tocList.appendChild(li);
+        });
+
+        // --- Scroll spy: highlight active TOC entry ---
+        const tocLinks = tocList.querySelectorAll('a');
+        const topbarHeight = 56;
+
+        function updateActiveToc() {
+          let currentId = '';
+          const scrollY = window.scrollY;
+
+          headings.forEach(h => {
+            if (h.getBoundingClientRect().top + scrollY - topbarHeight - 20 <= scrollY) {
+              currentId = h.id;
+            }
+          });
+
+          tocLinks.forEach(a => {
+            a.classList.toggle('active', a.dataset.target === currentId);
+          });
+        }
+
+        window.addEventListener('scroll', updateActiveToc, { passive: true });
+        updateActiveToc();
+      }
     }
   </script>
 </body>

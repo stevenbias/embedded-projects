@@ -18,7 +18,7 @@ This project teaches you the foundational mechanics of bare-metal programming th
 - Why `volatile` is non-negotiable
 - How to configure the system clock
 
-You will implement the same LED blinker in **C**, **Rust**, **Ada**, and **Zig** — each targeting the STM32F205 (Cortex-M3) running under QEMU's `netduinoplus2` machine. By the end, you will understand not only how to blink an LED, but how each language approaches the bare-metal problem space.
+You will implement the same LED blinker in **C**, **Rust**, **Ada**, and **Zig** — each targeting the STM32F405 (Cortex-M4F) running under QEMU's `netduinoplus2` machine. The same code also runs on the NUCLEO-F446RE (STM32F446) with no changes. By the end, you will understand not only how to blink an LED, but how each language approaches the bare-metal problem space.
 
 > **Tip:** If you already know one of these languages, skim that section and focus on the others. The real value is in comparing approaches.
 
@@ -26,10 +26,10 @@ You will implement the same LED blinker in **C**, **Rust**, **Ada**, and **Zig**
 
 | Property        | Value                              |
 |-----------------|------------------------------------|
-| Board           | Netduino Plus 2                    |
-| MCU             | STM32F205                          |
-| Core            | ARM Cortex-M3                      |
-| Flash           | 1 MiB @ `0x08000000`               |
+| Board           | Netduino Plus 2 (QEMU) / NUCLEO-F446RE (HW) |
+| MCU             | STM32F405 / STM32F446              |
+| Core            | ARM Cortex-M4F                     |
+| Flash           | 1 MiB (QEMU) / 512 KiB (NUCLEO) @ `0x08000000` |
 | SRAM            | 128 KiB @ `0x20000000`             |
 | LED (User)      | PA5 (GPIO Port A, Pin 5)           |
 | QEMU Machine    | `netduinoplus2`                    |
@@ -66,7 +66,7 @@ Index 1: Reset Handler
 
 ### Linker Script
 
-The linker script tells the linker where to place each section in the target's memory map. A minimal script for STM32F205 defines:
+The linker script tells the linker where to place each section in the target's memory map. A minimal script for STM32F405 defines:
 
 - **FLASH** region at `0x08000000`, length `1024K`
 - **RAM** region at `0x20000000`, length `128K`
@@ -82,7 +82,7 @@ Every language provides a way to tell the compiler "this memory location can cha
 
 ### Clock Configuration
 
-The STM32F2 starts up running on its internal 16 MHz HSI oscillator. GPIO peripherals live on the AHB1 bus and are **disabled by default** to save power. Before accessing any GPIO register, you must enable its clock via the RCC (Reset and Clock Control) peripheral.
+The STM32F4 starts up running on its internal 16 MHz HSI oscillator. GPIO peripherals live on the AHB1 bus and are **disabled by default** to save power. Before accessing any GPIO register, you must enable its clock via the RCC (Reset and Clock Control) peripheral.
 
 ## Key Registers
 
@@ -130,7 +130,7 @@ led-blinker-c/
 ### Linker Script (`linker.ld`)
 
 ```ld
-/* linker.ld — STM32F205 memory layout */
+/* linker.ld — STM32F405 memory layout */
 
 MEMORY
 {
@@ -185,10 +185,10 @@ SECTIONS
 ### Startup Assembly (`startup.s`)
 
 ```armasm
-/* startup.s — Cortex-M3 startup for STM32F205 */
+/* startup.s — Cortex-M4F startup for STM32F405 */
 
     .syntax unified
-    .cpu cortex-m3
+    .cpu cortex-m4
     .thumb
 
 /* External symbols defined by the linker */
@@ -250,7 +250,7 @@ Default_Handler:
 ### Main Code (`main.c`)
 
 ```c
-/* main.c — LED blinker for STM32F205 (Netduino Plus 2) */
+/* main.c — LED blinker for STM32F405 (Netduino Plus 2 / NUCLEO-F446RE) */
 
 #include <stdint.h>
 
@@ -296,15 +296,15 @@ int main(void)
 ### Makefile
 
 ```makefile
-# Makefile — LED Blinker (C / STM32F205)
+# Makefile — LED Blinker (C / STM32F405)
 
 CC      = arm-none-eabi-gcc
 AS      = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
 SIZE    = arm-none-eabi-size
 
-CFLAGS  = -mcpu=cortex-m3 -mthumb -Os -Wall -Wextra -ffreestanding -nostdlib
-ASFLAGS = -mcpu=cortex-m3 -mthumb
+CFLAGS  = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -Wall -Wextra -ffreestanding -nostdlib
+ASFLAGS = -mcpu=cortex-m4 -mthumb
 
 TARGET  = led-blinker
 SRCS    = main.c startup.s
@@ -337,7 +337,7 @@ clean:
 ### Build (C)
 
 ```bash
-arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -Os -Wall -Wextra \
+arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -Wall -Wextra \
   -ffreestanding -nostdlib -T linker.ld -o led-blinker.elf main.c startup.s
 arm-none-eabi-objcopy -O binary led-blinker.elf led-blinker.bin
 ```
@@ -381,9 +381,9 @@ debug = true
 
 ```toml
 [build]
-target = "thumbv7m-none-eabi"  # Cortex-M3
+target = "thumbv7em-none-eabihf"  # Cortex-M4F
 
-[target.thumbv7m-none-eabi]
+[target.thumbv7em-none-eabihf]
 runner = "qemu-system-arm -machine netduinoplus2 -nographic -kernel"
 rustflags = [
   "-C", "link-arg=-Tlink.x",
@@ -393,7 +393,7 @@ rustflags = [
 ### `memory.x` (Linker Script)
 
 ```ld
-/* memory.x — Memory layout for STM32F205 */
+/* memory.x — Memory layout for STM32F405 */
 
 MEMORY
 {
@@ -487,13 +487,13 @@ fn HardFault(_frame: &ExceptionFrame) -> ! {
 ### Build (Rust)
 
 ```bash
-# Install the Cortex-M3 target
-rustup target add thumbv7m-none-eabi
+# Install the Cortex-M4F target
+rustup target add thumbv7em-none-eabihf
 
 # Build in release mode
 cargo build --release
 
-# The binary is at target/thumbv7m-none-eabi/release/led-blinker
+# The binary is at target/thumbv7em-none-eabihf/release/led-blinker
 ```
 
 ## Implementation: Ada
@@ -507,7 +507,7 @@ led-blinker-ada/
 ├── startup.adb
 ├── main.adb
 ├── main.ads
-└── s-stm32f2.ads
+└── s-stm32f4.ads
 ```
 
 ### Project File (`led_blinker.gpr`)
@@ -516,7 +516,7 @@ led-blinker-ada/
 project Led_Blinker is
 
    for Target use "arm-eabi";
-   for Runtime use "ravenscar-sfp-stm32f2";
+   for Runtime use "ravenscar-sfp-stm32f4";
 
    for Source_Dirs use (".");
    for Object_Dir use "obj";
@@ -527,8 +527,10 @@ project Led_Blinker is
          "-O2",
          "-g",
          "-fstack-check",
-         "-mcpu=cortex-m3",
-         "-mthumb"
+          "-mcpu=cortex-m4",
+          "-mthumb",
+          "-mfloat-abi=hard",
+          "-mfpu=fpv4-sp-d16"
       );
    end Compiler;
 
@@ -551,7 +553,7 @@ end Led_Blinker;
 ```ada
 with System; use System;
 
-package S.STM32F2 is
+package S.STM32F4 is
    pragma Preelaborate;
 
    type UInt32 is mod 2 ** 32;
@@ -583,7 +585,7 @@ package S.STM32F2 is
 
    LED_PIN          : constant := 5;
 
-end S.STM32F2;
+end S.STM32F4;
 ```
 
 ### Startup (`startup.adb`)
@@ -625,7 +627,7 @@ end Main;
 ### Main Body (`main.adb`)
 
 ```ada
-with S.STM32F2; use S.STM32F2;
+with S.STM32F4; use S.STM32F4;
 with Interfaces; use Interfaces;
 
 package body Main is
@@ -698,9 +700,9 @@ const std = @import("std");
 pub fn build(b: *std.Build) void {
     const target = b.resolveTargetQuery(.{
         .cpu_arch = .thumb,
-        .cpu_model = .{ .explicit = &std.Target.arm.cpu.cortex_m3 },
+        .cpu_model = .{ .explicit = &std.Target.arm.cpu.cortex_m4 },
         .os_tag = .freestanding,
-        .abi = .eabi,
+        .abi = .eabihf,
     });
 
     const optimize = b.standardOptimizeOption(.{});
@@ -837,7 +839,7 @@ export fn main_entry() callconv(.C) noreturn {
 ### `src/main.zig`
 
 ```zig
-// main.zig — LED blinker for STM32F205
+// main.zig — LED blinker for STM32F405
 
 const std = @import("std");
 
@@ -949,3 +951,18 @@ arm-none-eabi-gdb led-blinker.elf
 You now understand the boot process, memory layout, and register access for bare-metal ARM. In [Project 2: UART Echo Server](02-uart-echo.md), you will add serial communication — learning baud rate calculation, polling vs. interrupt-driven I/O, and how each language handles peripheral configuration with more complexity.
 
 > **Tip:** Before moving on, try modifying the blink rate, adding a second LED (if your target supports it), or replacing the busy-wait delay with the SysTick timer for more precise timing.
+
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 7: Reset and clock control (RCC), Ch. 8: General-purpose I/Os (GPIO)
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf)
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: Programmer's Model (MSP, vector table), Ch. 4: Memory Model
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception entry and return, vector table structure
+
+### Tools & Emulation
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html)

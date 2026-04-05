@@ -230,7 +230,7 @@ bootloader-c/
 MEMORY
 {
     FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 16K
-    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 20K
+    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
 ENTRY(Reset_Handler)
@@ -274,8 +274,8 @@ SECTIONS
 ```ld
 MEMORY
 {
-    FLASH (rx) : ORIGIN = 0x08004000, LENGTH = 240K
-    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 20K
+    FLASH (rx) : ORIGIN = 0x08004000, LENGTH = 1008K
+    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
 ENTRY(Reset_Handler)
@@ -384,10 +384,10 @@ uint32_t crc32_table(const uint8_t *data, size_t len) {
 #include <stdbool.h>
 
 #define FLASH_BASE      0x08000000
-#define FLASH_PAGE_SIZE 1024  /* STM32F103: 1KB pages */
+#define FLASH_SECTOR_SIZE 16384  /* STM32F405: 16KB sectors (sector 0) */
 
 #define APP_ADDR        0x08004000
-#define APP_MAX_SIZE    (240 * 1024)
+#define APP_MAX_SIZE    (1008 * 1024)
 
 /* Flash status codes */
 typedef enum {
@@ -412,17 +412,18 @@ flash_status_t flash_verify(uint32_t addr, const uint8_t *expected, size_t len);
 ```c
 #include "flash.h"
 
-/* STM32F103 Flash registers */
-#define FLASH_KEYR      (*(volatile uint32_t *)0x40022004)
-#define FLASH_SR        (*(volatile uint32_t *)0x4002200C)
-#define FLASH_CR        (*(volatile uint32_t *)0x40022010)
+/* STM32F405 Flash registers */
+#define FLASH_KEYR      (*(volatile uint32_t *)0x40023C04)
+#define FLASH_SR        (*(volatile uint32_t *)0x40023C0C)
+#define FLASH_CR        (*(volatile uint32_t *)0x40023C10)
 
 #define FLASH_KEY1      0x45670123
 #define FLASH_KEY2      0xCDEF89AB
 
-#define FLASH_CR_PER    (1 << 1)   /* Page erase */
+#define FLASH_CR_SER    (1 << 1)   /* Sector erase */
 #define FLASH_CR_PG     (1 << 0)   /* Programming */
-#define FLASH_CR_STRT   (1 << 6)   /* Start */
+#define FLASH_CR_STRT   (1 << 16)  /* Start */
+#define FLASH_CR_SNB_0  (0 << 3)   /* Sector 0 */
 #define FLASH_SR_BSY    (1 << 0)   /* Busy */
 
 flash_status_t flash_unlock(void) {
@@ -448,12 +449,12 @@ flash_status_t flash_erase_page(uint32_t page_addr) {
     /* Wait for busy */
     while (FLASH_SR & FLASH_SR_BSY);
 
-    FLASH_CR |= FLASH_CR_PER;
-    *(volatile uint32_t *)0x40022014 = page_addr; /* FLASH_AR */
+    FLASH_CR |= FLASH_CR_SER;
+    FLASH_CR |= FLASH_CR_SNB_0;
     FLASH_CR |= FLASH_CR_STRT;
 
     while (FLASH_SR & FLASH_SR_BSY);
-    FLASH_CR &= ~FLASH_CR_PER;
+    FLASH_CR &= ~FLASH_CR_SER;
 
     return FLASH_OK;
 }
@@ -512,32 +513,39 @@ char uart_getc(void);
 ```c
 #include "uart.h"
 
-/* STM32F103 USART1 registers */
-#define USART1_SR     (*(volatile uint32_t *)0x40013800)
-#define USART1_DR     (*(volatile uint32_t *)0x40013804)
-#define USART1_BRR    (*(volatile uint32_t *)0x40013808)
-#define USART1_CR1    (*(volatile uint32_t *)0x4001380C)
+/* STM32F405 USART1 registers */
+#define USART1_SR     (*(volatile uint32_t *)0x40011000)
+#define USART1_DR     (*(volatile uint32_t *)0x40011004)
+#define USART1_BRR    (*(volatile uint32_t *)0x40011008)
+#define USART1_CR1    (*(volatile uint32_t *)0x4001100C)
 
-#define RCC_APB2ENR   (*(volatile uint32_t *)0x40021018)
-#define GPIOA_CRH     (*(volatile uint32_t *)0x40010804)
+#define RCC_AHB1ENR   (*(volatile uint32_t *)0x40023830)
+#define RCC_APB2ENR   (*(volatile uint32_t *)0x40023844)
+#define GPIOA_MODER   (*(volatile uint32_t *)0x40020000)
+#define GPIOA_AFRH    (*(volatile uint32_t *)0x40020024)
 
 #define USART_SR_RXNE (1 << 5)
 #define USART_SR_TXE  (1 << 7)
 
 void uart_init(uint32_t baud) {
     /* Enable GPIOA and USART1 clocks */
-    RCC_APB2ENR |= (1 << 2) | (1 << 14);
+    RCC_AHB1ENR |= (1 << 0);    /* GPIOA */
+    RCC_APB2ENR |= (1 << 4);    /* USART1 */
 
-    /* PA9 (TX) = alternate function push-pull, 50MHz */
-    GPIOA_CRH &= ~(0xF << 4);
-    GPIOA_CRH |= (0xB << 4);
+    /* PA9 (TX) = alternate function mode (10), AF7 */
+    GPIOA_MODER &= ~(0x3 << (9 * 2));
+    GPIOA_MODER |= (0x2 << (9 * 2));
+    GPIOA_AFRH &= ~(0xF << ((9 - 8) * 4));
+    GPIOA_AFRH |= (0x7 << ((9 - 8) * 4));
 
-    /* PA10 (RX) = input floating */
-    GPIOA_CRH &= ~(0xF << 8);
-    GPIOA_CRH |= (0x4 << 8);
+    /* PA10 (RX) = alternate function mode (10), AF7 */
+    GPIOA_MODER &= ~(0x3 << (10 * 2));
+    GPIOA_MODER |= (0x2 << (10 * 2));
+    GPIOA_AFRH &= ~(0xF << ((10 - 8) * 4));
+    GPIOA_AFRH |= (0x7 << ((10 - 8) * 4));
 
     /* Configure USART1: 8N1, enable TX/RX */
-    uint32_t div = (8000000 + baud / 2) / baud; /* 8MHz HSI */
+    uint32_t div = (16000000 + baud / 2) / baud; /* 16MHz HSI */
     USART1_BRR = div;
     USART1_CR1 = (1 << 13) | (1 << 3) | (1 << 2); /* UE | TE | RE */
 }
@@ -692,7 +700,7 @@ static int write_flash_block(uint32_t addr, const uint8_t *data, size_t len) {
         uint32_t page = addr;
         while (page < addr + len + APP_MAX_SIZE) {
             flash_erase_page(page);
-            page += FLASH_PAGE_SIZE;
+            page += FLASH_SECTOR_SIZE;
         }
     }
 
@@ -817,10 +825,10 @@ void HardFault_Handler(void) { while (1); }
 ```c
 #include <stdint.h>
 
-/* GPIO for STM32F103 (LED on PC13) */
-#define RCC_APB2ENR   (*(volatile uint32_t *)0x40021018)
-#define GPIOC_CRH     (*(volatile uint32_t *)0x40011004)
-#define GPIOC_ODR     (*(volatile uint32_t *)0x4001100C)
+/* GPIO for STM32F405 (LED on PA5) */
+#define RCC_AHB1ENR   (*(volatile uint32_t *)0x40023830)
+#define GPIOA_MODER   (*(volatile uint32_t *)0x40020000)
+#define GPIOA_ODR     (*(volatile uint32_t *)0x40020014)
 
 /* SCB */
 #define SCB_VTOR      (*(volatile uint32_t *)0xE000ED08)
@@ -835,7 +843,7 @@ extern uint32_t _sidata, _sdata, _edata;
 extern uint32_t _sbss, _ebss;
 
 void delay_ms(uint32_t ms) {
-    SYST_RVR = 8000 - 1;
+    SYST_RVR = 16000 - 1;
     SYST_CVR = 0;
     SYST_CSR = 0x5; /* Enable, no interrupt */
     while (ms--) {
@@ -857,14 +865,14 @@ void Reset_Handler(void) {
     /* Relocate vector table */
     SCB_VTOR = 0x08004000;
 
-    /* Configure PC13 as output */
-    RCC_APB2ENR |= (1 << 4);
-    GPIOC_CRH &= ~(0xF << 20);
-    GPIOC_CRH |= (0x3 << 20);
+    /* Configure PA5 as output */
+    RCC_AHB1ENR |= (1 << 0);
+    GPIOA_MODER &= ~(0x3 << (5 * 2));
+    GPIOA_MODER |= (0x1 << (5 * 2));
 
     /* Blink LED to confirm successful boot */
     while (1) {
-        GPIOC_ODR ^= (1 << 13);
+        GPIOA_ODR ^= (1 << 5);
         delay_ms(500);
     }
 }
@@ -884,7 +892,7 @@ void HardFault_Handler(void) { while (1); }
 ```makefile
 CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
-CFLAGS = -mcpu=cortex-m3 -mthumb -Os -g -Wall -Wextra -nostdlib
+CFLAGS = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -g -Wall -Wextra -nostdlib
 
 # Bootloader
 BOOT_SRCS = main_boot.c bootloader.c crc32.c flash.c uart.c xmodem.c
@@ -915,7 +923,7 @@ firmware.bin: $(APP_BIN)
 	python3 make_firmware.py $< $@
 
 flash: $(BOOT_BIN)
-	qemu-system-arm -M stm32-f103 -kernel $(BOOT_BIN) -serial stdio -S -s &
+	qemu-system-arm -M netduinoplus2 -kernel $(BOOT_BIN) -serial stdio -S -s &
 
 clean:
 	rm -f $(BOOT_ELF) $(BOOT_BIN) $(APP_ELF) $(APP_BIN) firmware.bin
@@ -1013,7 +1021,7 @@ lto = true
 MEMORY
 {
     FLASH : ORIGIN = 0x08000000, LENGTH = 16K
-    RAM : ORIGIN = 0x20000000, LENGTH = 20K
+    RAM : ORIGIN = 0x20000000, LENGTH = 128K
 }
 ```
 
@@ -1058,26 +1066,36 @@ fn crc32(data: &[u8]) -> u32 {
 
 fn uart_init() {
     unsafe {
-        let rcc_apb2enr = &*(0x4002_1018 as *mut u32);
-        rcc_apb2enr.write_volatile(rcc_apb2enr.read_volatile() | (1 << 2) | (1 << 14));
+        let rcc_ahb1enr = &*(0x4002_3830 as *mut u32);
+        let rcc_apb2enr = &*(0x4002_3844 as *mut u32);
+        rcc_ahb1enr.write_volatile(rcc_ahb1enr.read_volatile() | (1 << 0));
+        rcc_apb2enr.write_volatile(rcc_apb2enr.read_volatile() | (1 << 4));
 
-        let gpioa_crh = &*(0x4001_0804 as *mut u32);
-        let crh = gpioa_crh.read_volatile();
-        gpioa_crh.write_volatile((crh & !(0xF << 4)) | (0xB << 4)); // PA9 TX
-        gpioa_crh.write_volatile((crh & !(0xF << 8)) | (0x4 << 8)); // PA10 RX
+        let gpioa_moder = &*(0x4002_0000 as *mut u32);
+        let gpioa_afrh = &*(0x4002_0024 as *mut u32);
+        // PA9 TX: alternate function mode, AF7
+        let moder = gpioa_moder.read_volatile();
+        gpioa_moder.write_volatile((moder & !(0x3 << 18)) | (0x2 << 18));
+        let afrh = gpioa_afrh.read_volatile();
+        gpioa_afrh.write_volatile((afrh & !(0xF << 4)) | (0x7 << 4));
+        // PA10 RX: alternate function mode, AF7
+        let moder = gpioa_moder.read_volatile();
+        gpioa_moder.write_volatile((moder & !(0x3 << 20)) | (0x2 << 20));
+        let afrh = gpioa_afrh.read_volatile();
+        gpioa_afrh.write_volatile((afrh & !(0xF << 8)) | (0x7 << 8));
 
-        let usart1_brr = &*(0x4001_3808 as *mut u32);
-        usart1_brr.write_volatile((8_000_000 + 115_200 / 2) / 115_200);
+        let usart1_brr = &*(0x4001_1008 as *mut u32);
+        usart1_brr.write_volatile((16_000_000 + 115_200 / 2) / 115_200);
 
-        let usart1_cr1 = &*(0x4001_380C as *mut u32);
+        let usart1_cr1 = &*(0x4001_100C as *mut u32);
         usart1_cr1.write_volatile((1 << 13) | (1 << 3) | (1 << 2));
     }
 }
 
 fn uart_putc(c: u8) {
     unsafe {
-        let sr = &*(0x4001_3800 as *mut u32);
-        let dr = &*(0x4001_3804 as *mut u32);
+        let sr = &*(0x4001_1000 as *mut u32);
+        let dr = &*(0x4001_1004 as *mut u32);
         while sr.read_volatile() & (1 << 7) == 0 {}
         dr.write_volatile(c as u32);
     }
@@ -1091,8 +1109,8 @@ fn uart_puts(s: &[u8]) {
 
 fn uart_getc() -> u8 {
     unsafe {
-        let sr = &*(0x4001_3800 as *mut u32);
-        let dr = &*(0x4001_3804 as *mut u32);
+        let sr = &*(0x4001_1000 as *mut u32);
+        let dr = &*(0x4001_1004 as *mut u32);
         while sr.read_volatile() & (1 << 5) == 0 {}
         dr.read_volatile() as u8
     }
@@ -1100,11 +1118,11 @@ fn uart_getc() -> u8 {
 
 fn flash_unlock() -> bool {
     unsafe {
-        let cr = &*(0x4002_2010 as *mut u32);
+        let cr = &*(0x4002_3C10 as *mut u32);
         if cr.read_volatile() & (1 << 7) == 0 {
             return true;
         }
-        let keyr = &*(0x4002_2004 as *mut u32);
+        let keyr = &*(0x4002_3C04 as *mut u32);
         keyr.write_volatile(0x4567_0123);
         keyr.write_volatile(0xCDEF_89AB);
         cr.read_volatile() & (1 << 7) == 0
@@ -1113,21 +1131,19 @@ fn flash_unlock() -> bool {
 
 fn flash_lock() {
     unsafe {
-        let cr = &*(0x4002_2010 as *mut u32);
+        let cr = &*(0x4002_3C10 as *mut u32);
         cr.write_volatile(cr.read_volatile() | (1 << 7));
     }
 }
 
 fn flash_erase_page(addr: u32) {
     unsafe {
-        let sr = &*(0x4002_200C as *mut u32);
-        let cr = &*(0x4002_2010 as *mut u32);
-        let ar = &*(0x4002_2014 as *mut u32);
+        let sr = &*(0x4002_3C0C as *mut u32);
+        let cr = &*(0x4002_3C10 as *mut u32);
 
         while sr.read_volatile() & 1 != 0 {}
-        cr.write_volatile(cr.read_volatile() | (1 << 1));
-        ar.write_volatile(addr);
-        cr.write_volatile(cr.read_volatile() | (1 << 6));
+        cr.write_volatile(cr.read_volatile() | (1 << 1));  /* SER */
+        cr.write_volatile(cr.read_volatile() | (1 << 16)); /* STRT */
         while sr.read_volatile() & 1 != 0 {}
         cr.write_volatile(cr.read_volatile() & !(1 << 1));
     }
@@ -1135,8 +1151,8 @@ fn flash_erase_page(addr: u32) {
 
 fn flash_write_halfword(addr: u32, data: u16) {
     unsafe {
-        let sr = &*(0x4002_200C as *mut u32);
-        let cr = &*(0x4002_2010 as *mut u32);
+        let sr = &*(0x4002_3C0C as *mut u32);
+        let cr = &*(0x4002_3C10 as *mut u32);
 
         while sr.read_volatile() & 1 != 0 {}
         cr.write_volatile(cr.read_volatile() | 1);
@@ -1285,8 +1301,8 @@ fn panic(_info: &core::panic::PanicInfo) -> ! {
 ```
 MEMORY
 {
-    FLASH : ORIGIN = 0x08004000, LENGTH = 240K
-    RAM : ORIGIN = 0x20000000, LENGTH = 20K
+    FLASH : ORIGIN = 0x08004000, LENGTH = 1008K
+    RAM : ORIGIN = 0x20000000, LENGTH = 128K
 }
 ```
 
@@ -1299,13 +1315,13 @@ MEMORY
 use cortex_m::peripheral::SCB;
 use cortex_m_rt::{entry, exception};
 
-const RCC_APB2ENR: *mut u32 = 0x4002_1018 as _;
-const GPIOC_CRH: *mut u32 = 0x4001_1004 as _;
-const GPIOC_ODR: *mut u32 = 0x4001_100C as _;
+const RCC_AHB1ENR: *mut u32 = 0x4002_3830 as _;
+const GPIOA_MODER: *mut u32 = 0x4002_0000 as _;
+const GPIOA_ODR: *mut u32 = 0x4002_0014 as _;
 
 fn delay_ms(ms: u32) {
     let systick = unsafe { &*cortex_m::peripheral::SYST::PTR };
-    systick.set_reload(8000 - 1);
+    systick.set_reload(16000 - 1);
     systick.clear_current();
     systick.enable_counter();
 
@@ -1323,18 +1339,18 @@ fn main() -> ! {
         SCB::set_vtor(0x0800_4000);
     }
 
-    // Configure PC13
+    // Configure PA5
     unsafe {
-        (*RCC_APB2ENR) |= 1 << 4;
-        let crh = (*GPIOC_CRH).read_volatile();
-        (*GPIOC_CRH).write_volatile((crh & !(0xF << 20)) | (0x3 << 20));
+        (*RCC_AHB1ENR) |= 1 << 0;
+        let moder = (*GPIOA_MODER).read_volatile();
+        (*GPIOA_MODER).write_volatile((moder & !(0x3 << 10)) | (0x1 << 10));
     }
 
     // Blink LED
     loop {
         unsafe {
-            let odr = (*GPIOC_ODR).read_volatile();
-            (*GPIOC_ODR).write_volatile(odr ^ (1 << 13));
+            let odr = (*GPIOA_ODR).read_volatile();
+            (*GPIOA_ODR).write_volatile(odr ^ (1 << 5));
         }
         delay_ms(500);
     }
@@ -1358,14 +1374,14 @@ cd bootloader && cargo build --release
 cd ../app && cargo build --release
 
 # Create firmware image
-python3 ../make_firmware.py ../app/target/thumbv7m-none-eabi/release/app
+python3 ../make_firmware.py ../app/target/thumbv7em-none-eabihf/release/app
 
 # Run in QEMU
-qemu-system-arm -M stm32-f103 \
-    -kernel bootloader/target/thumbv7m-none-eabi/release/bootloader \
+qemu-system-arm -M netduinoplus2 \
+    -kernel bootloader/target/thumbv7em-none-eabihf/release/bootloader \
     -serial stdio -S -s &
 
-arm-none-eabi-gdb bootloader/target/thumbv7m-none-eabi/release/bootloader
+arm-none-eabi-gdb bootloader/target/thumbv7em-none-eabihf/release/bootloader
 (gdb) target remote :1234
 (gdb) break bootloader::jump_to_app
 (gdb) continue
@@ -1602,25 +1618,25 @@ procedure Main_App is
 
    type UInt32 is mod 2**32;
 
-   RCC_APB2ENR : UInt32 with
-     Address => System'To_Address (16#4002_1018#),
+   RCC_AHB1ENR : UInt32 with
+     Address => System'To_Address (16#4002_3830#),
      Volatile => True;
 
-   GPIOC_CRH : UInt32 with
-     Address => System'To_Address (16#4001_1004#),
+   GPIOA_MODER : UInt32 with
+     Address => System'To_Address (16#4002_0000#),
      Volatile => True;
 
-   GPIOC_ODR : UInt32 with
-     Address => System'To_Address (16#4001_100C#),
+   GPIOA_ODR : UInt32 with
+     Address => System'To_Address (16#4002_0014#),
      Volatile => True;
 
    SCB_VTOR : UInt32 with
      Address => System'To_Address (16#E000_ED08#),
      Volatile => True;
 
-   procedure Delay_MS (MS : Natural) is
-      Count : Natural := MS * 8000;
-   begin
+    procedure Delay_MS (MS : Natural) is
+       Count : Natural := MS * 16000;
+    begin
       while Count > 0 loop
          Count := Count - 1;
       end loop;
@@ -1630,19 +1646,19 @@ begin
    -- Relocate vector table
    SCB_VTOR := 16#0800_4000#;
 
-   -- Configure PC13
-   RCC_APB2ENR := RCC_APB2ENR or (1 << 4);
-   declare
-      CRH : constant UInt32 := GPIOC_CRH;
-   begin
-      GPIOC_CRH := (CRH and not (16#F# << 20)) or (16#3# << 20);
-   end;
+    -- Configure PA5
+    RCC_AHB1ENR := RCC_AHB1ENR or (1 << 0);
+    declare
+       MODER : constant UInt32 := GPIOA_MODER;
+    begin
+       GPIOA_MODER := (MODER and not (16#3# << 10)) or (16#1# << 10);
+    end;
 
-   -- Blink LED
-   loop
-      GPIOC_ODR := GPIOC_ODR xor (1 << 13);
-      Delay_MS (500);
-   end loop;
+    -- Blink LED
+    loop
+       GPIOA_ODR := GPIOA_ODR xor (1 << 5);
+       Delay_MS (500);
+    end loop;
 end Main_App;
 ```
 
@@ -1755,23 +1771,31 @@ fn crc32(data: []const u8) u32 {
 }
 
 // UART
-const USART1_SR = @as(*volatile u32, @ptrFromInt(0x40013800));
-const USART1_DR = @as(*volatile u32, @ptrFromInt(0x40013804));
-const USART1_BRR = @as(*volatile u32, @ptrFromInt(0x40013808));
-const USART1_CR1 = @as(*volatile u32, @ptrFromInt(0x4001380C));
-const RCC_APB2ENR = @as(*volatile u32, @ptrFromInt(0x40021018));
-const GPIOA_CRH = @as(*volatile u32, @ptrFromInt(0x40010804));
+const USART1_SR = @as(*volatile u32, @ptrFromInt(0x40011000));
+const USART1_DR = @as(*volatile u32, @ptrFromInt(0x40011004));
+const USART1_BRR = @as(*volatile u32, @ptrFromInt(0x40011008));
+const USART1_CR1 = @as(*volatile u32, @ptrFromInt(0x4001100C));
+const RCC_AHB1ENR = @as(*volatile u32, @ptrFromInt(0x40023830));
+const RCC_APB2ENR = @as(*volatile u32, @ptrFromInt(0x40023844));
+const GPIOA_MODER = @as(*volatile u32, @ptrFromInt(0x40020000));
+const GPIOA_AFRH = @as(*volatile u32, @ptrFromInt(0x40020024));
 
 fn uart_init() void {
-    RCC_APB2ENR.* |= (1 << 2) | (1 << 14);
+    RCC_AHB1ENR.* |= (1 << 0);
+    RCC_APB2ENR.* |= (1 << 4);
 
-    // PA9 TX
-    const crh = GPIOA_CRH.*;
-    GPIOA_CRH.* = (crh & ~(@as(u32, 0xF) << 4)) | (@as(u32, 0xB) << 4);
-    // PA10 RX
-    GPIOA_CRH.* = (crh & ~(@as(u32, 0xF) << 8)) | (@as(u32, 0x4) << 8);
+    // PA9 TX: alternate function mode, AF7
+    const moder = GPIOA_MODER.*;
+    GPIOA_MODER.* = (moder & ~(@as(u32, 0x3) << 18)) | (@as(u32, 0x2) << 18);
+    const afrh = GPIOA_AFRH.*;
+    GPIOA_AFRH.* = (afrh & ~(@as(u32, 0xF) << 4)) | (@as(u32, 0x7) << 4);
+    // PA10 RX: alternate function mode, AF7
+    const moder2 = GPIOA_MODER.*;
+    GPIOA_MODER.* = (moder2 & ~(@as(u32, 0x3) << 20)) | (@as(u32, 0x2) << 20);
+    const afrh2 = GPIOA_AFRH.*;
+    GPIOA_AFRH.* = (afrh2 & ~(@as(u32, 0xF) << 8)) | (@as(u32, 0x7) << 8);
 
-    USART1_BRR.* = (8000000 + 115200 / 2) / 115200;
+    USART1_BRR.* = (16000000 + 115200 / 2) / 115200;
     USART1_CR1.* = (1 << 13) | (1 << 3) | (1 << 2);
 }
 
@@ -1790,10 +1814,9 @@ fn uart_getc() u8 {
 }
 
 // Flash
-const FLASH_KEYR = @as(*volatile u32, @ptrFromInt(0x40022004));
-const FLASH_SR = @as(*volatile u32, @ptrFromInt(0x4002200C));
-const FLASH_CR = @as(*volatile u32, @ptrFromInt(0x40022010));
-const FLASH_AR = @as(*volatile u32, @ptrFromInt(0x40022014));
+const FLASH_KEYR = @as(*volatile u32, @ptrFromInt(0x40023C04));
+const FLASH_SR = @as(*volatile u32, @ptrFromInt(0x40023C0C));
+const FLASH_CR = @as(*volatile u32, @ptrFromInt(0x40023C10));
 
 fn flash_unlock() bool {
     if (FLASH_CR.* & (1 << 7) == 0) return true;
@@ -1809,8 +1832,7 @@ fn flash_lock() void {
 fn flash_erase_page(addr: u32) void {
     while (FLASH_SR.* & 1 != 0) {}
     FLASH_CR.* |= (1 << 1);
-    FLASH_AR.* = addr;
-    FLASH_CR.* |= (1 << 6);
+    FLASH_CR.* |= (1 << 16);
     while (FLASH_SR.* & 1 != 0) {}
     FLASH_CR.* &= ~(@as(u32, 1) << 1);
 }
@@ -1978,16 +2000,16 @@ export fn main() noreturn {
 ```zig
 const std = @import("std");
 
-const RCC_APB2ENR = @as(*volatile u32, @ptrFromInt(0x40021018));
-const GPIOC_CRH = @as(*volatile u32, @ptrFromInt(0x40011004));
-const GPIOC_ODR = @as(*volatile u32, @ptrFromInt(0x4001100C));
+const RCC_AHB1ENR = @as(*volatile u32, @ptrFromInt(0x40023830));
+const GPIOA_MODER = @as(*volatile u32, @ptrFromInt(0x40020000));
+const GPIOA_ODR = @as(*volatile u32, @ptrFromInt(0x40020014));
 const SCB_VTOR = @as(*volatile u32, @ptrFromInt(0xE000ED08));
 const SYST_CSR = @as(*volatile u32, @ptrFromInt(0xE000E010));
 const SYST_RVR = @as(*volatile u32, @ptrFromInt(0xE000E014));
 const SYST_CVR = @as(*volatile u32, @ptrFromInt(0xE000E018));
 
 fn delay_ms(ms: u32) void {
-    SYST_RVR.* = 8000 - 1;
+    SYST_RVR.* = 16000 - 1;
     SYST_CVR.* = 0;
     SYST_CSR.* = 0x5;
     var m: u32 = 0;
@@ -2028,14 +2050,14 @@ export fn main() noreturn {
     // Relocate vector table
     SCB_VTOR.* = 0x08004000;
 
-    // Configure PC13
-    RCC_APB2ENR.* |= (1 << 4);
-    const crh = GPIOC_CRH.*;
-    GPIOC_CRH.* = (crh & ~(@as(u32, 0xF) << 20)) | (@as(u32, 0x3) << 20);
+    // Configure PA5
+    RCC_AHB1ENR.* |= (1 << 0);
+    const moder = GPIOA_MODER.*;
+    GPIOA_MODER.* = (moder & ~(@as(u32, 0x3) << 10)) | (@as(u32, 0x1) << 10);
 
     // Blink LED
     while (true) {
-        GPIOC_ODR.* ^= (1 << 13);
+        GPIOA_ODR.* ^= (1 << 5);
         delay_ms(500);
     }
 }
@@ -2045,7 +2067,7 @@ export fn main() noreturn {
 
 ```bash
 zig build
-qemu-system-arm -M stm32-f103 -kernel zig-out/bin/bootloader -serial stdio -S -s &
+qemu-system-arm -M netduinoplus2 -kernel zig-out/bin/bootloader -serial stdio -S -s &
 arm-none-eabi-gdb zig-out/bin/bootloader
 ```
 
@@ -2057,7 +2079,7 @@ arm-none-eabi-gdb zig-out/bin/bootloader
 
 ```bash
 # Terminal 1
-qemu-system-arm -M stm32-f103 -kernel bootloader.bin -serial stdio -S -s &
+qemu-system-arm -M netduinoplus2 -kernel bootloader.bin -serial stdio -S -s &
 
 # Terminal 2
 arm-none-eabi-gdb bootloader.elf
@@ -2104,14 +2126,14 @@ msp            0x20005000  0x20005000
 (gdb) continue
 
 # Verify the LED pin toggles
-(gdb) x/x 0x4001100C
-0x4001100c: 0x00002000  # PC13 high
+(gdb) x/x 0x40020014
+0x40020014: 0x00000020  # PA5 high
 
 (gdb) continue
 Breakpoint ...
 
-(gdb) x/x 0x4001100C
-0x4001100c: 0x00000000  # PC13 low
+(gdb) x/x 0x40020014
+0x40020014: 0x00000000  # PA5 low
 ```
 
 ---
@@ -2172,3 +2194,18 @@ Breakpoint ...
 - Build a host-side firmware update tool in Python with progress reporting
 - Port the bootloader to a different MCU family (STM32F4, nRF52, RP2040)
 - Compare your bootloader's size and speed to MCUboot or LittleFS
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 3: Flash interface (FLASH_KEYR, FLASH_SR, FLASH_CR — PG, SER, STRT, BSY), sector erase, half-word programming; Ch. 7: RCC (clock enables)
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Flash sector layout (16KB sectors for sector 0), memory map
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: Vector table (initial MSP, Reset_Handler), SCB->VTOR (Vector Table Offset Register at 0xE000ED08), AIRCR (Application Interrupt and Reset Control Register at 0xE000ED0C, SYSRESETREQ)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception model (vector table relocation, MSP manipulation, exception return via BX LR), CPSID/CPSIE instructions
+- [ARM EABI Specification](https://github.com/ARM-software/abi-aa/releases) — Binary image format, ELF sections (.vectors, .text, .data, .bss)
+
+### Tools & Emulation
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — Flash emulation, dual-bank simulation

@@ -318,8 +318,8 @@ logger-c/
 ```ld
 MEMORY
 {
-    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
 ENTRY(Reset_Handler)
@@ -407,14 +407,14 @@ SdError sd_last_error(void);
 #include "sd_spi.h"
 #include <string.h>
 
-/* SPI1 on STM32F103: PA5=SCK, PA6=MISO, PA7=MOSI */
+/* SPI1 on STM32F405: PA5=SCK, PA6=MISO, PA7=MOSI (AF5) */
 #define SPI1_CR1    (*(volatile uint32_t *)0x40013000)
 #define SPI1_SR     (*(volatile uint32_t *)0x40013004)
 #define SPI1_DR     (*(volatile uint32_t *)0x40013008)
-#define RCC_APB2ENR (*(volatile uint32_t *)0x40021018)
-#define GPIOA_CRL   (*(volatile uint32_t *)0x40010800)
-#define GPIOC_CRH   (*(volatile uint32_t *)0x40011004)
-#define GPIOC_BSRR  (*(volatile uint32_t *)0x40011010)
+#define RCC_AHB1ENR (*(volatile uint32_t *)0x40023830)
+#define GPIOA_MODER (*(volatile uint32_t *)0x40020000)
+#define GPIOA_AFRL  (*(volatile uint32_t *)0x40020020)
+#define GPIOA_BSRR  (*(volatile uint32_t *)0x40020018)
 
 #define SD_CS_PIN   (1 << 4)
 
@@ -422,11 +422,11 @@ static SdError last_err = SD_OK;
 static bool card_is_sdhc = false;
 
 static inline void sd_cs_low(void) {
-    GPIOC_BSRR = SD_CS_PIN << 16;
+    GPIOA_BSRR = SD_CS_PIN << 16;
 }
 
 static inline void sd_cs_high(void) {
-    GPIOC_BSRR = SD_CS_PIN;
+    GPIOA_BSRR = SD_CS_PIN;
 }
 
 static inline uint8_t spi_transfer(uint8_t data) {
@@ -491,15 +491,20 @@ static uint8_t sd_wait_token(uint8_t expected, int timeout_ms) {
 }
 
 static void spi_init(void) {
-    RCC_APB2ENR |= (1 << 12) | (1 << 2);
+    RCC_AHB1ENR |= (1 << 0);  /* Enable GPIOA clock */
 
-    /* PA5 SCK, PA7 MOSI: alt func push-pull; PA6 MISO: input floating */
-    GPIOA_CRL &= ~(0xFFF << 20);
-    GPIOA_CRL |= (0x44B << 20);
+    /* PA5=SCK, PA6=MISO, PA7=MOSI: alternate function (AF5), push-pull */
+    /* MODER: 0b10 = alternate function for pins 5,6,7 */
+    GPIOA_MODER &= ~(0x3F << 10);
+    GPIOA_MODER |= (0x2A << 10);  /* AF mode for PA5,PA6,PA7 */
 
-    /* PC4 CS: output push-pull */
-    GPIOC_CRH &= ~(0xF << 16);
-    GPIOC_CRH |= (0x3 << 16);
+    /* AFR[0]: AF5 for pins 5,6,7 (4 bits each, bits 20-31) */
+    GPIOA_AFRL &= ~(0xFFF << 20);
+    GPIOA_AFRL |= (0x555 << 20);  /* AF5 for PA5,PA6,PA7 */
+
+    /* PA4 CS: output push-pull */
+    GPIOA_MODER &= ~(0x3 << 8);
+    GPIOA_MODER |= (0x1 << 8);  /* Output mode for PA4 */
     sd_cs_high();
 
     /* SPI1: master, BR=FPCLK/256 (slow for init), CPOL=0, CPHA=0 */
@@ -1106,9 +1111,10 @@ int logger_close(Logger *log) {
 #include <stdint.h>
 
 /* GPIO for LED */
-#define RCC_APB2ENR   (*(volatile uint32_t *)0x40021018)
-#define GPIOC_CRH     (*(volatile uint32_t *)0x40011004)
-#define GPIOC_ODR     (*(volatile uint32_t *)0x4001100C)
+#define RCC_AHB1ENR   (*(volatile uint32_t *)0x40023830)
+#define GPIOA_MODER   (*(volatile uint32_t *)0x40020000)
+#define GPIOA_ODR     (*(volatile uint32_t *)0x40020014)
+#define GPIOA_BSRR    (*(volatile uint32_t *)0x40020018)
 
 /* I2C1 registers (for sensor reads) */
 #define I2C1_CR1      (*(volatile uint32_t *)0x40005400)
@@ -1157,16 +1163,17 @@ static int sd_write_block(void *ctx, uint32_t block, const uint8_t *buf, uint32_
 }
 
 int main(void) {
-    /* Enable GPIOC */
-    RCC_APB2ENR |= (1 << 4);
-    GPIOC_CRH &= ~(0xF << 20);
-    GPIOC_CRH |= (0x3 << 20);
+    /* Enable GPIOA */
+    RCC_AHB1ENR |= (1 << 0);
+    /* PA13 as output for LED */
+    GPIOA_MODER &= ~(0x3 << 26);
+    GPIOA_MODER |= (0x1 << 26);
 
     /* Initialize SD card */
     if (sd_init() != SD_OK) {
         /* SD init failed - blink LED fast */
         while (1) {
-            GPIOC_ODR ^= (1 << 13);
+            GPIOA_ODR ^= (1 << 13);
             delay_ms(100);
         }
     }
@@ -1204,7 +1211,7 @@ int main(void) {
             logger_flush(&log);
         }
 
-        GPIOC_ODR ^= (1 << 13);
+        GPIOA_ODR ^= (1 << 13);
         delay_ms(100);
     }
 
@@ -1218,7 +1225,7 @@ int main(void) {
 ```makefile
 CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
-CFLAGS = -mcpu=cortex-m3 -mthumb -Os -g -Wall -Wextra -nostdlib -ffreestanding
+CFLAGS = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -g -Wall -Wextra -nostdlib -ffreestanding
 LDFLAGS = -T linker.ld
 
 all: logger.elf logger.bin
@@ -1289,8 +1296,8 @@ rustflags = ["-C", "link-arg=-Tlink.x"]
 ```
 MEMORY
 {
-    FLASH : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM : ORIGIN = 0x20000000, LENGTH = 128K
 }
 ```
 
@@ -1369,12 +1376,12 @@ impl SdCardSpi {
     }
 
     unsafe fn cs_low(&self) {
-        let bsrr = 0x4001_1010 as *mut u32;
+        let bsrr = 0x4002_0018 as *mut u32;
         bsrr.write_volatile(1 << (4 + 16));
     }
 
     unsafe fn cs_high(&self) {
-        let bsrr = 0x4001_1010 as *mut u32;
+        let bsrr = 0x4002_0018 as *mut u32;
         bsrr.write_volatile(1 << 4);
     }
 
@@ -1399,8 +1406,8 @@ impl SdCardSpi {
 
     pub unsafe fn init(&mut self) -> Result<(), SdError> {
         // SPI init (simplified — see C version for full GPIO setup)
-        let rcc = 0x4002_1018 as *mut u32;
-        rcc.write_volatile(rcc.read_volatile() | (1 << 12) | (1 << 2));
+        let rcc = 0x4002_3830 as *mut u32;
+        rcc.write_volatile(rcc.read_volatile() | (1 << 0));
 
         self.cs_high();
         // 80 clock pulses
@@ -1734,9 +1741,9 @@ fn read_pressure() -> u32 { 101325 }
  * GPIO and Delay
  * ============================================================ */
 
-const RCC_APB2ENR: *mut u32 = 0x4002_1018 as _;
-const GPIOC_CRH: *mut u32 = 0x4001_1004 as _;
-const GPIOC_ODR: *mut u32 = 0x4001_100C as _;
+const RCC_AHB1ENR: *mut u32 = 0x4002_3830 as _;
+const GPIOA_MODER: *mut u32 = 0x4002_0000 as _;
+const GPIOA_ODR: *mut u32 = 0x4002_0014 as _;
 
 fn delay_ms(ms: u32) {
     unsafe {
@@ -1758,9 +1765,9 @@ fn delay_ms(ms: u32) {
 #[entry]
 fn main() -> ! {
     unsafe {
-        (*RCC_APB2ENR) |= 1 << 4;
-        let crh = (*GPIOC_CRH).read_volatile();
-        (*GPIOC_CRH).write_volatile((crh & !(0xF << 20)) | (0x3 << 20));
+        (*RCC_AHB1ENR) |= 1 << 0;
+        let moder = (*GPIOA_MODER).read_volatile();
+        (*GPIOA_MODER).write_volatile((moder & !(0x3 << 26)) | (0x1 << 26));
     }
 
     // Initialize SD card
@@ -1768,7 +1775,7 @@ fn main() -> ! {
     if sd.init().is_err() {
         // Blink fast on error
         loop {
-            unsafe { (*GPIOC_ODR).write_volatile((*GPIOC_ODR).read_volatile() ^ (1 << 13)); }
+            unsafe { (*GPIOA_ODR).write_volatile((*GPIOA_ODR).read_volatile() ^ (1 << 13)); }
             delay_ms(100);
         }
     }
@@ -1811,7 +1818,7 @@ fn main() -> ! {
             // Flush would go here in a full implementation
         }
 
-        unsafe { (*GPIOC_ODR).write_volatile((*GPIOC_ODR).read_volatile() ^ (1 << 13)); }
+        unsafe { (*GPIOA_ODR).write_volatile((*GPIOA_ODR).read_volatile() ^ (1 << 13)); }
         delay_ms(100);
     }
 }
@@ -1875,7 +1882,7 @@ project Logger is
 
    package Compiler is
       for Default_Switches ("Ada") use
-        ("-O2", "-g", "-mcpu=cortex-m3", "-mthumb",
+        ("-O2", "-g", "-mcpu=cortex-m4", "-mthumb",
          "-fstack-check", "-gnatp", "-gnata");
    end Compiler;
 
@@ -1985,15 +1992,15 @@ with System.Storage_Elements; use System.Storage_Elements;
 
 package body SD_SPI is
 
-   SPI1_CR1  : Unsigned_32 with Address => System'To_Address (16#4001_3000#), Volatile => True;
-   SPI1_SR   : Unsigned_32 with Address => System'To_Address (16#4001_3004#), Volatile => True;
-   SPI1_DR   : Unsigned_32 with Address => System'To_Address (16#4001_3008#), Volatile => True;
-   RCC_APB2ENR : Unsigned_32 with Address => System'To_Address (16#4002_1018#), Volatile => True;
-   GPIOA_CRL : Unsigned_32 with Address => System'To_Address (16#4001_0800#), Volatile => True;
-   GPIOC_CRH : Unsigned_32 with Address => System'To_Address (16#4001_1004#), Volatile => True;
-   GPIOC_BSRR: Unsigned_32 with Address => System'To_Address (16#4001_1010#), Volatile => True;
+    SPI1_CR1  : Unsigned_32 with Address => System'To_Address (16#4001_3000#), Volatile => True;
+    SPI1_SR   : Unsigned_32 with Address => System'To_Address (16#4001_3004#), Volatile => True;
+    SPI1_DR   : Unsigned_32 with Address => System'To_Address (16#4001_3008#), Volatile => True;
+    RCC_AHB1ENR : Unsigned_32 with Address => System'To_Address (16#4002_3830#), Volatile => True;
+    GPIOA_MODER : Unsigned_32 with Address => System'To_Address (16#4002_0000#), Volatile => True;
+    GPIOA_AFRL  : Unsigned_32 with Address => System'To_Address (16#4002_0020#), Volatile => True;
+    GPIOA_BSRR  : Unsigned_32 with Address => System'To_Address (16#4002_0018#), Volatile => True;
 
-   SD_CS_Pin : constant Unsigned_32 := 16#10#;  -- PC4
+    SD_CS_Pin : constant Unsigned_32 := 16#10#;  -- PA4
 
    type Buffer_512 is array (0 .. 511) of Unsigned_8;
    for Buffer_512'Component_Size use 8;
@@ -2006,15 +2013,15 @@ package body SD_SPI is
       Result := Unsigned_8 (SPI1_DR and 16#FF#);
    end SPI_Transfer;
 
-   procedure CS_Low is
-   begin
-      GPIOC_BSRR := SD_CS_Pin << 16;
-   end CS_Low;
+    procedure CS_Low is
+    begin
+       GPIOA_BSRR := SD_CS_Pin << 16;
+    end CS_Low;
 
-   procedure CS_High is
-   begin
-      GPIOC_BSRR := SD_CS_Pin;
-   end CS_High;
+    procedure CS_High is
+    begin
+       GPIOA_BSRR := SD_CS_Pin;
+    end CS_High;
 
    procedure Send_Command
      (Cmd  : Unsigned_8;
@@ -2046,17 +2053,27 @@ package body SD_SPI is
    is
       R1, Temp : Unsigned_8;
    begin
-      -- Enable clocks
-      RCC_APB2ENR := RCC_APB2ENR or (1 << 12) or (1 << 2);
+       -- Enable clocks
+       RCC_AHB1ENR := RCC_AHB1ENR or (1 << 0);
 
-      -- GPIO setup
-      declare
-         CRH : constant Unsigned_32 := GPIOA_CRL;
-      begin
-         GPIOA_CRL := (CRH and not (16#FFF# << 20)) or (16#44B# << 20);
-      end;
-      GPIOC_CRH := (GPIOC_CRH and not (16#F# << 16)) or (16#3# << 16);
-      CS_High;
+       -- GPIO setup: PA5=SCK, PA6=MISO, PA7=MOSI as AF5
+       declare
+          Moder : constant Unsigned_32 := GPIOA_MODER;
+       begin
+          GPIOA_MODER := (Moder and not (16#3F# << 10)) or (16#2A# << 10);
+       end;
+       declare
+          Afrl : constant Unsigned_32 := GPIOA_AFRL;
+       begin
+          GPIOA_AFRL := (Afrl and not (16#FFF# << 20)) or (16#555# << 20);
+       end;
+       -- PA4 CS: output
+       declare
+          Moder : constant Unsigned_32 := GPIOA_MODER;
+       begin
+          GPIOA_MODER := (Moder and not (16#3# << 8)) or (16#1# << 8);
+       end;
+       CS_High;
 
       -- SPI init
       SPI1_CR1 := (1 << 9) or (1 << 8) or (1 << 2) or (7 << 3);
@@ -2257,17 +2274,17 @@ procedure Main is
 
    type UInt32 is mod 2**32;
 
-   RCC_APB2ENR : UInt32 with
-     Address => System'To_Address (16#4002_1018#),
-     Volatile => True;
+    RCC_AHB1ENR : UInt32 with
+      Address => System'To_Address (16#4002_3830#),
+      Volatile => True;
 
-   GPIOC_CRH : UInt32 with
-     Address => System'To_Address (16#4001_1004#),
-     Volatile => True;
+    GPIOA_MODER : UInt32 with
+      Address => System'To_Address (16#4002_0000#),
+      Volatile => True;
 
-   GPIOC_ODR : UInt32 with
-     Address => System'To_Address (16#4001_100C#),
-     Volatile => True;
+    GPIOA_ODR : UInt32 with
+      Address => System'To_Address (16#4002_0014#),
+      Volatile => True;
 
    Card  : SD_Card_Device;
    Err   : SD_Error;
@@ -2331,19 +2348,19 @@ procedure Main is
    end Log_Line;
 
 begin
-   -- Enable GPIOC
-   RCC_APB2ENR := RCC_APB2ENR or (1 << 4);
+   -- Enable GPIOA
+   RCC_AHB1ENR := RCC_AHB1ENR or (1 << 0);
    declare
-      CRH : constant UInt32 := GPIOC_CRH;
+      Moder : constant UInt32 := GPIOA_MODER;
    begin
-      GPIOC_CRH := (CRH and not (16#F# << 20)) or (16#3# << 20);
+      GPIOA_MODER := (Moder and not (16#3# << 26)) or (16#1# << 26);
    end;
 
    -- Initialize SD card
    Initialize (Card, Err);
    if Err /= SD_OK then
       loop
-         GPIOC_ODR := GPIOC_ODR xor (1 << 13);
+          GPIOA_ODR := GPIOA_ODR xor (1 << 13);
          Delay_MS (100);
       end loop;
    end if;
@@ -2370,7 +2387,7 @@ begin
          end if;
 
          Tick := Tick + 1;
-         GPIOC_ODR := GPIOC_ODR xor (1 << 13);
+          GPIOA_ODR := GPIOA_ODR xor (1 << 13);
          Delay_MS (100);
       end loop;
    end;
@@ -2434,8 +2451,8 @@ pub fn build(b: *std.Build) void {
 ```ld
 MEMORY
 {
-    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
 ENTRY(Reset_Handler)
@@ -2501,10 +2518,10 @@ pub const BlockDevice = struct {
 const SPI1_CR1 = @as(*volatile u32, @ptrFromInt(0x40013000));
 const SPI1_SR = @as(*volatile u32, @ptrFromInt(0x40013004));
 const SPI1_DR = @as(*volatile u32, @ptrFromInt(0x40013008));
-const RCC_APB2ENR = @as(*volatile u32, @ptrFromInt(0x40021018));
-const GPIOA_CRL = @as(*volatile u32, @ptrFromInt(0x40010800));
-const GPIOC_CRH = @as(*volatile u32, @ptrFromInt(0x40011004));
-const GPIOC_BSRR = @as(*volatile u32, @ptrFromInt(0x40011010));
+const RCC_AHB1ENR = @as(*volatile u32, @ptrFromInt(0x40023830));
+const GPIOA_MODER = @as(*volatile u32, @ptrFromInt(0x40020000));
+const GPIOA_AFRL = @as(*volatile u32, @ptrFromInt(0x40020020));
+const GPIOA_BSRR = @as(*volatile u32, @ptrFromInt(0x40020018));
 
 const SD_CS_PIN: u32 = 1 << 4;
 
@@ -2520,11 +2537,11 @@ const SdCard = struct {
     is_sdhc: bool,
 
     fn cs_low() void {
-        GPIOC_BSRR.* = SD_CS_PIN << 16;
+        GPIOA_BSRR.* = SD_CS_PIN << 16;
     }
 
     fn cs_high() void {
-        GPIOC_BSRR.* = SD_CS_PIN;
+        GPIOA_BSRR.* = SD_CS_PIN;
     }
 
     fn spi_transfer(data: u8) u8 {
@@ -2553,11 +2570,14 @@ const SdCard = struct {
     }
 
     fn init(self: *SdCard) !void {
-        RCC_APB2ENR.* |= (1 << 12) | (1 << 2);
+        RCC_AHB1ENR.* |= (1 << 0);
 
-        const crh = GPIOA_CRL.*;
-        GPIOA_CRL.* = (crh & ~(@as(u32, 0xFFF) << 20)) | (@as(u32, 0x44B) << 20);
-        GPIOC_CRH.* = (GPIOC_CRH.* & ~(@as(u32, 0xF) << 16)) | (@as(u32, 0x3) << 16);
+        const moder = GPIOA_MODER.*;
+        GPIOA_MODER.* = (moder & ~(@as(u32, 0x3F) << 10)) | (@as(u32, 0x2A) << 10);
+        const afrl = GPIOA_AFRL.*;
+        GPIOA_AFRL.* = (afrl & ~(@as(u32, 0xFFF) << 20)) | (@as(u32, 0x555) << 20);
+        const moder2 = GPIOA_MODER.*;
+        GPIOA_MODER.* = (moder2 & ~(@as(u32, 0x3) << 8)) | (@as(u32, 0x1) << 8);
         cs_high();
 
         SPI1_CR1.* = (1 << 9) | (1 << 8) | (1 << 2) | (7 << 3);
@@ -2869,9 +2889,9 @@ fn read_pressure() u32 { return 101325; }
 // GPIO and Delay
 // ============================================================
 
-const RCC_APB2ENR_LED = @as(*volatile u32, @ptrFromInt(0x40021018));
-const GPIOC_CRH_LED = @as(*volatile u32, @ptrFromInt(0x40011004));
-const GPIOC_ODR_LED = @as(*volatile u32, @ptrFromInt(0x4001100C));
+const RCC_AHB1ENR_LED = @as(*volatile u32, @ptrFromInt(0x40023830));
+const GPIOA_MODER_LED = @as(*volatile u32, @ptrFromInt(0x40020000));
+const GPIOA_ODR_LED = @as(*volatile u32, @ptrFromInt(0x40020014));
 
 fn delay_ms(ms: u32) void {
     const rvr = @as(*volatile u32, @ptrFromInt(0xE000E014));
@@ -2943,16 +2963,16 @@ export fn Reset_Handler() callconv(.Naked) noreturn {
 }
 
 export fn main() noreturn {
-    // Enable GPIOC
-    RCC_APB2ENR_LED.* |= (1 << 4);
-    const crh = GPIOC_CRH_LED.*;
-    GPIOC_CRH_LED.* = (crh & ~(@as(u32, 0xF) << 20)) | (@as(u32, 0x3) << 20);
+    // Enable GPIOA
+    RCC_AHB1ENR_LED.* |= (1 << 0);
+    const moder = GPIOA_MODER_LED.*;
+    GPIOA_MODER_LED.* = (moder & ~(@as(u32, 0x3) << 26)) | (@as(u32, 0x1) << 26);
 
     // Initialize SD card
     g_sd_card = .{ .is_sdhc = false };
     g_sd_card.init() catch {
         while (true) {
-            GPIOC_ODR_LED.* ^= (1 << 13);
+            GPIOA_ODR_LED.* ^= (1 << 13);
             delay_ms(100);
         }
     };
@@ -2988,7 +3008,7 @@ export fn main() noreturn {
         fat.write_file_data(cluster, len) catch {};
 
         tick += 1;
-        GPIOC_ODR_LED.* ^= (1 << 13);
+        GPIOA_ODR_LED.* ^= (1 << 13);
         delay_ms(100);
     }
 }
@@ -3130,3 +3150,18 @@ xxd -l 512 sdcard.img | head -20
 - Add real-time clock (RTC) for accurate timestamps
 - Implement SDIO (4-bit) mode for higher throughput
 - Compare your driver's write throughput to a production FAT library (FatFs, embedded-sdmmc)
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 28: SPI (SD card SPI mode), Ch. 27: I2C (multi-sensor reads), Ch. 8: GPIO (pin configuration for SPI + I2C)
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Pin multiplexing
+
+### External Specifications
+- [SD Specifications Part 1: Physical Layer Simplified](https://www.sdcard.org/downloads/pls/) — SD card SPI mode, CMD0-CMD59, R1/R3/R7 responses, data tokens (0xFE, 0xFF)
+- [Microsoft FAT32 Specification](https://learn.microsoft.com/en-us/windows/win32/fileio/fat-file-system) — BPB structure, FAT table, directory entries, cluster chains, EOF markers
+
+### Tools & Emulation
+- [QEMU ARM Documentation](https://www.qemu.org/docs/master/system/target-arm.html) — raspi2 machine with SD card image (-sd sdcard.img)
+- [Renode Documentation](https://docs.renode.io/) — SD card emulation

@@ -123,7 +123,7 @@ The `t_fine` value is reused for pressure compensation.
 
 ### Fixed-Point Arithmetic
 
-Floating-point is expensive on Cortex-M0/M3 (no FPU). The BMP280 compensation can be done entirely in fixed-point:
+Floating-point is available on Cortex-M4F (hardware FPU), but fixed-point is still useful for determinism and portability. The BMP280 compensation can be done entirely in fixed-point:
 
 - Temperature uses Q24.8 intermediate values
 - Pressure uses Q32.32 via 64-bit intermediates
@@ -159,6 +159,146 @@ cd renode && ./build.sh
 
 ## Implementation
 
+### STM32F405 Hardware Setup
+
+#### Memory Map (STM32F405RG)
+
+| Region | Address Range     | Size   |
+|--------|-------------------|--------|
+| Flash  | 0x08000000–0x080FFFFF | 1024K |
+| SRAM   | 0x20000000–0x2001FFFF | 128K  |
+
+#### RCC Clock Enable (AHB1 for GPIO, APB1 for I2C)
+
+On STM32F4, GPIO clocks are on AHB1 (not APB2 like STM32F1):
+
+```c
+#define RCC_BASE        0x40023800UL
+#define RCC_AHB1ENR     (*(volatile uint32_t *)(RCC_BASE + 0x30))
+#define RCC_APB1ENR     (*(volatile uint32_t *)(RCC_BASE + 0x40))
+
+#define RCC_AHB1ENR_GPIOB_EN  (1U << 1)
+#define RCC_APB1ENR_I2C1_EN   (1U << 21)
+
+/* Enable GPIOB and I2C1 clocks */
+RCC_AHB1ENR |= RCC_AHB1ENR_GPIOB_EN;
+RCC_APB1ENR |= RCC_APB1ENR_I2C1_EN;
+```
+
+#### GPIO Configuration (STM32F4 MODER/OTYPER/OSPEEDR/PUPDR/AFR)
+
+STM32F4 replaces the STM32F1 CRL/CRH model with separate registers:
+
+| Register   | Description                          | Bits per pin |
+|------------|--------------------------------------|--------------|
+| MODER      | Mode: 00=in, 01=out, 10=AF, 11=analog | 2            |
+| OTYPER     | Output type: 0=push-pull, 1=open-drain | 1            |
+| OSPEEDR    | Speed: 00=2MHz, 01=25MHz, 10=50MHz, 11=100MHz | 2 |
+| PUPDR      | Pull-up/down: 00=none, 01=up, 10=down | 2            |
+| AFRL/AFRH  | Alternate function number (pins 0-7 / 8-15) | 4       |
+
+For I2C1 on PB6 (SCL) and PB7 (SDA), both use AF4:
+
+```c
+#define GPIOB_BASE      0x40020400UL
+#define GPIOB_MODER     (*(volatile uint32_t *)(GPIOB_BASE + 0x00))
+#define GPIOB_OTYPER    (*(volatile uint32_t *)(GPIOB_BASE + 0x04))
+#define GPIOB_OSPEEDR   (*(volatile uint32_t *)(GPIOB_BASE + 0x08))
+#define GPIOB_PUPDR     (*(volatile uint32_t *)(GPIOB_BASE + 0x0C))
+#define GPIOB_AFRL      (*(volatile uint32_t *)(GPIOB_BASE + 0x20))
+
+/* Configure PB6 (SCL) and PB7 (SDA) as alternate function, open-drain */
+
+/* MODER: set pins 6 and 7 to alternate function mode (10) */
+GPIOB_MODER &= ~((0x3U << 12) | (0x3U << 14));  /* Clear bits for pin 6 and 7 */
+GPIOB_MODER |=  (0x2U << 12) | (0x2U << 14);    /* Set AF mode (10) */
+
+/* OTYPER: set pins 6 and 7 to open-drain (1) */
+GPIOB_OTYPER |= (1U << 6) | (1U << 7);
+
+/* OSPEEDR: set to high speed (10 = 50 MHz) */
+GPIOB_OSPEEDR |= (0x2U << 12) | (0x2U << 14);
+
+/* PUPDR: pull-up (01) for I2C idle-high */
+GPIOB_PUPDR &= ~((0x3U << 12) | (0x3U << 14));
+GPIOB_PUPDR |=  (0x1U << 12) | (0x1U << 14);
+
+/* AFRL: set AF4 for pins 6 and 7 (4 bits each) */
+GPIOB_AFRL &= ~((0xFU << 24) | (0xFU << 28));   /* Clear AF for pin 6 and 7 */
+GPIOB_AFRL |=  (0x4U << 24) | (0x4U << 28);     /* Set AF4 (I2C1) */
+```
+
+#### I2C TIMINGR Values (STM32F4)
+
+The STM32F4 replaces CCR/TRISE with a single TIMINGR register. The layout is:
+
+```
+| 31:28   | 27:24 | 23:20    | 19:16   | 15:8    | 7:0     |
+| PRESC   | -     | SCLDEL   | SDADEL  | SCLH    | SCLL    |
+```
+
+| Speed   | APB1 Clock | TIMINGR Value | PRESC | SCLDEL | SDADEL | SCLH | SCLL |
+|---------|------------|---------------|-------|--------|--------|------|------|
+| 100 kHz | 16 MHz     | 0x00300D14    | 3     | 13     | 1      | 20   | 20   |
+| 400 kHz | 16 MHz     | 0x0010020A    | 1     | 2      | 0      | 10   | 10   |
+```
+
+#### Linker Script (`stm32f405rg.ld`)
+
+```ld
+MEMORY
+{
+    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 128K
+}
+
+_estack = 0x20020000;
+
+SECTIONS
+{
+    .isr_vector :
+    {
+        . = ALIGN(4);
+        KEEP(*(.isr_vector))
+        . = ALIGN(4);
+    } > FLASH
+
+    .text :
+    {
+        . = ALIGN(4);
+        *(.text)
+        *(.text*)
+        *(.rodata)
+        *(.rodata*)
+        . = ALIGN(4);
+        _etext = .;
+    } > FLASH
+
+    ._sidata = .;
+
+    .data : AT (_sidata)
+    {
+        . = ALIGN(4);
+        _sdata = .;
+        *(.data)
+        *(.data*)
+        . = ALIGN(4);
+        _edata = .;
+    } > RAM
+
+    .bss :
+    {
+        . = ALIGN(4);
+        _sbss = .;
+        *(.bss)
+        *(.bss*)
+        *(COMMON)
+        . = ALIGN(4);
+        _ebss = .;
+    } > RAM
+}
+```
+
 ### C: I2C Peripheral Driver + BMP280 Read
 
 #### I2C Driver (`i2c.h`)
@@ -186,6 +326,7 @@ typedef struct {
     volatile uint32_t *txdr;
     volatile uint32_t *rxdr;
     volatile uint32_t *oar1;
+    volatile uint32_t *timingr;
     uint32_t i2c_clk;
 } i2c_handle_t;
 
@@ -208,14 +349,15 @@ i2c_error_t i2c_write_read(i2c_handle_t *hi2c, uint8_t addr,
 ```c
 #include "i2c.h"
 
-/* STM32 I2C register offsets (I2C2 peripheral shown) */
+/* STM32F4 I2C register offsets (I2C2 peripheral shown) */
 #define I2C2_BASE       0x40005800UL
 #define I2C_CR1_OFF     0x00
 #define I2C_CR2_OFF     0x04
+#define I2C_OAR1_OFF    0x08
+#define I2C_TIMINGR_OFF 0x10
 #define I2C_ISR_OFF     0x18
 #define I2C_TXDR_OFF    0x24
 #define I2C_RXDR_OFF    0x28
-#define I2C_OAR1_OFF    0x08
 
 #define CR1_PE          (1U << 0)
 #define CR1_TXIE        (1U << 1)
@@ -252,13 +394,14 @@ i2c_error_t i2c_init(i2c_handle_t *hi2c, uint32_t speed_hz) {
     hi2c->txdr = (volatile uint32_t *)(I2C2_BASE + I2C_TXDR_OFF);
     hi2c->rxdr = (volatile uint32_t *)(I2C2_BASE + I2C_RXDR_OFF);
     hi2c->oar1 = (volatile uint32_t *)(I2C2_BASE + I2C_OAR1_OFF);
+    hi2c->timingr = (volatile uint32_t *)(I2C2_BASE + I2C_TIMINGR_OFF);
 
     /* Disable peripheral during config */
     *hi2c->cr1 &= ~CR1_PE;
 
-    /* Configure timing register for 100 kHz at 16 MHz PCLK */
-    /* PRESC=7, SCLDEL=3, SDADEL=1, SCLH=39, SCLL=60 */
-    *hi2c->cr2 = (7U << 28) | (3U << 20) | (1U << 16) | (39U << 8) | 60U;
+    /* Configure TIMINGR for 100 kHz at 16 MHz APB1 clock */
+    /* TIMINGR = 0x00300D14: PRESC=3, SCLDEL=13, SDADEL=1, SCLH=20, SCLL=20 */
+    *hi2c->timingr = 0x00300D14;
 
     /* Set own address (master mode, 7-bit) */
     *hi2c->oar1 = 0;
@@ -940,7 +1083,7 @@ where
     }
 }
 
-// --- Example usage with stm32f4xx-hal ---
+// --- Example usage with stm32f4xx-hal (STM32F405) ---
 //
 // #[entry]
 // fn main() -> ! {
@@ -950,9 +1093,9 @@ where
 //     let rcc = dp.RCC.constrain();
 //     let clocks = rcc.cfgr.sysclk(48.MHz()).freeze();
 //
-//     let gpioa = dp.GPIOA.split();
-//     let scl = gpioa.pa9.into_alternate::<4>();
-//     let sda = gpioa.pa10.into_alternate::<4>();
+//     let gpiob = dp.GPIOB.split();
+//     let scl = gpiob.pb6.into_alternate::<4>();
+//     let sda = gpiob.pb7.into_alternate::<4>();
 //
 //     let i2c = I2c::new(dp.I2C2, (scl, sda), 100.kHz(), clocks);
 //
@@ -1782,12 +1925,12 @@ pub fn main() !void {
 sudo apt install gcc-arm-none-eabi gdb-multiarch
 
 # Build
-arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -O2 \
+arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O2 \
     -fno-common -ffunction-sections -fdata-sections \
     -Wall -Wextra -Werror \
-    -T stm32f103c8.ld \
+    -T stm32f405rg.ld \
     -o bmp280.elf \
-    main.c i2c.c bmp280.c startup_stm32f103xb.c
+    main.c i2c.c bmp280.c startup_stm32f405xx.c
 
 # Generate binary
 arm-none-eabi-objcopy -O binary bmp280.elf bmp280.bin
@@ -1798,14 +1941,14 @@ arm-none-eabi-size bmp280.elf
 
 ```bash
 # Install toolchain
-rustup target add thumbv7m-none-eabi
+rustup target add thumbv7em-none-eabihf
 cargo install flip-link
 
 # Build
-cargo build --release --target thumbv7m-none-eabi
+cargo build --release --target thumbv7em-none-eabihf
 
 # Size
-cargo bloat --release --target thumbv7m-none-eabi
+cargo bloat --release --target thumbv7em-none-eabihf
 ```
 
 ### Ada (GNAT ARM ELF)
@@ -1831,7 +1974,7 @@ arm-eabi-gnatlink main.ali -o main.elf
 # https://ziglang.org/download/
 
 # Build for bare-metal ARM
-zig build-exe main.zig -target thumbv7m-freestanding -OReleaseSmall
+zig build-exe main.zig -target thumbv7em-freestanding-eabihf -OReleaseSmall
 
 # Or build for host testing
 zig build-exe main.zig -OReleaseFast
@@ -1842,7 +1985,7 @@ zig build-exe main.zig -OReleaseFast
 Create a Renode platform file (`bmp280.resc`):
 
 ```
-# Create STM32F4 Discovery machine
+# Create STM32F405 machine
 mach create
 
 # Add CPU
@@ -1921,3 +2064,20 @@ Expected output in the analyzer:
 - [ ] Error handling for all I2C failure modes
 - [ ] Renode simulation showing correct I2C transactions
 - [ ] Output: temperature in °C and pressure in hPa
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 27: I2C (CR1, CR2, TIMINGR, OAR1), Ch. 8: GPIO (MODER, OTYPER open-drain, AF4 for I2C1)
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Pin multiplexing for I2C1 (PB6/PB7)
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — FPU usage for floating-point compensation math (FPv4-SP-D16)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Memory ordering, DMB for I2C transaction synchronization
+
+### Sensor Documentation
+- [BMP280 Datasheet (Bosch BST-BMP280-DS001)](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf) — Register map, calibration coefficients, compensation formulas
+
+### Tools & Emulation
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — I2C peripheral simulation limitations
+- [Renode Documentation](https://docs.renode.io/) — BMP280 I2C sensor model, I2C bus analyzer

@@ -199,7 +199,26 @@ See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for complete installat
 ### Setup & Reference
 - [Prerequisites & Toolchain Setup](00a-prerequisites.md)
 - [Emulator Setup & Usage Guide](00b-emulator-setup.md)
+- [GDB Survival Guide](00c-gdb-survival-guide.md)
 
 ---
 
-> **Ready to begin?** Start with [Prerequisites & Toolchain Setup](00a-prerequisites.md), then head to [Project 1: LED Blinker](01-led-blinker.md).
+> **Ready to begin?** Start with [Prerequisites & Toolchain Setup](00a-prerequisites.md), then [Emulator Setup](00b-emulator-setup.md), review the [GDB Survival Guide](00c-gdb-survival-guide.md), and head to [Project 1: LED Blinker](01-led-blinker.md).
+
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Complete peripheral reference for STM32F4 family
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Pin assignments, memory sizes, electrical characteristics
+- [NUCLEO-F446RE Documentation](https://www.st.com/en/evaluation-tools/nucleo-f446re.html) — Board schematics, user manual, ST-Link/V2-1 details
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Processor architecture, FPU, NVIC, SysTick
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Exception model, memory ordering, instruction set
+
+### Tools & Emulation
+- [QEMU ARM Documentation](https://www.qemu.org/docs/master/system/target-arm.html) — qemu-system-arm usage, GDB stub, semihosting
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — netduinoplus2 machine, supported peripherals
+- [Renode Documentation](https://docs.renode.io/) — Multi-node simulation, bus analyzers, peripheral models

@@ -10,6 +10,8 @@ In this project you will build a **CAN bus communication node** that reads OBD-I
 
 CAN (Controller Area Network) is the dominant in-vehicle networking protocol. Every modern car uses CAN for communication between ECUs (engine, transmission, ABS, airbag, instrument cluster). Understanding CAN at the register level is essential for automotive embedded development, diagnostics, and aftermarket tool development.
 
+This project targets the **STM32F405** (Cortex-M4F) on a **Netduino Plus 2** board.
+
 ## What You'll Learn
 
 - CAN protocol fundamentals: differential signaling, dominant/recessive bits, bitwise arbitration
@@ -72,10 +74,10 @@ Bit Time = Sync_Seg + Prop_Seg + Phase_Seg1 + Phase_Seg2
   Sample point            (hard sync)
 ```
 
-For 500 kbps CAN with a 36 MHz APB1 clock:
-- Prescaler = 4 → time quantum = 4/36 MHz ≈ 111 ns
-- Total time quanta per bit = 18 → bit rate = 36 MHz / (4 × 18) = 500 kbps
-- Sample point at ~83% (Sync_Seg + Prop_Seg + Phase_Seg1) / Total
+For 500 kbps CAN with a 42 MHz APB1 clock:
+- Prescaler = 6 → time quantum = 6/42 MHz ≈ 143 ns
+- Total time quanta per bit = 14 → bit rate = 42 MHz / (6 × 14) = 500 kbps
+- Sample point at ~57% (Sync_Seg + Prop_Seg + Phase_Seg1) / Total
 
 ---
 
@@ -244,8 +246,8 @@ can-c/
 ```ld
 MEMORY
 {
-    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
 ENTRY(Reset_Handler)
@@ -378,13 +380,16 @@ CanError bxcan_get_error(void);
 #define CAN_FiR0(n)     (*(volatile uint32_t *)(CAN_BASE + 0x240 + (n) * 8))
 #define CAN_FiR1(n)     (*(volatile uint32_t *)(CAN_BASE + 0x244 + (n) * 8))
 
-/* RCC registers */
-#define RCC_APB1ENR     (*(volatile uint32_t *)0x4002101C)
-#define RCC_APB2ENR     (*(volatile uint32_t *)0x40021018)
+/* RCC registers — STM32F4 */
+#define RCC_AHB1ENR     (*(volatile uint32_t *)0x40023830)
+#define RCC_APB1ENR     (*(volatile uint32_t *)0x40023840)
 
-/* GPIO registers (CAN: PA11=RX, PA12=TX) */
-#define GPIOA_CRH       (*(volatile uint32_t *)0x40010804)
-#define GPIOA_ODR       (*(volatile uint32_t *)0x4001080C)
+/* GPIO registers (CAN: PA11=RX, PA12=TX, STM32F4 MODER/AFR) */
+#define GPIOA_MODER     (*(volatile uint32_t *)0x40020000)
+#define GPIOA_OTYPER    (*(volatile uint32_t *)0x40020004)
+#define GPIOA_OSPEEDR   (*(volatile uint32_t *)0x40020008)
+#define GPIOA_PUPDR     (*(volatile uint32_t *)0x4002000C)
+#define GPIOA_AFRH      (*(volatile uint32_t *)0x40020024)
 
 /* NVIC registers */
 #define NVIC_ISER0      (*(volatile uint32_t *)0xE000E100)
@@ -426,31 +431,40 @@ CanError bxcan_get_error(void);
 static CanError last_error = CAN_OK;
 
 void bxcan_init(uint32_t bitrate) {
-    /* Enable CAN and GPIOA clocks */
+    /* Enable CAN and GPIOA clocks — STM32F4 uses AHB1 for GPIO */
+    RCC_AHB1ENR |= (1 << 0);   /* GPIOA */
     RCC_APB1ENR |= (1 << 25);  /* CAN1 */
-    RCC_APB2ENR |= (1 << 2);   /* GPIOA */
 
-    /* Configure PA11 (RX) as input pull-up, PA12 (TX) as alternate function push-pull */
-    /* PA11: CNF=10 (input pull-up/down), MODE=00 (input) */
-    GPIOA_CRH &= ~(0xF << 12);
-    GPIOA_CRH |= (0x8 << 12);  /* Input with pull-up */
-    GPIOA_ODR |= (1 << 11);    /* Pull-up */
+    /* Configure PA11 (RX) and PA12 (TX) as alternate function AF9 (CAN) */
+    /* MODER: set bits [23:22]=10 (AF) for PA11, [25:24]=10 (AF) for PA12 */
+    GPIOA_MODER &= ~((0x3 << 22) | (0x3 << 24));
+    GPIOA_MODER |= (0x2 << 22) | (0x2 << 24);
 
-    /* PA12: CNF=10 (alt func push-pull), MODE=11 (50MHz) */
-    GPIOA_CRH &= ~(0xF << 16);
-    GPIOA_CRH |= (0xB << 16);
+    /* OTYPER: push-pull (0) for PA12 TX */
+    GPIOA_OTYPER &= ~(1 << 12);
+
+    /* OSPEEDR: high speed for PA12 TX */
+    GPIOA_OSPEEDR |= (0x3 << 24);
+
+    /* PUPDR: pull-up for PA11 RX */
+    GPIOA_PUPDR &= ~(0x3 << 22);
+    GPIOA_PUPDR |= (0x1 << 22);
+
+    /* AFRH: AF9 for PA11 (bits [15:12]) and PA12 (bits [19:16]) */
+    GPIOA_AFRH &= ~((0xF << 12) | (0xF << 16));
+    GPIOA_AFRH |= (0x9 << 12) | (0x9 << 16);
 
     /* Request initialization mode */
     CAN_MCR |= CAN_MCR_INRQ;
     while (!(CAN_MSR & CAN_MSR_INAK));
 
-    /* Configure bit timing for 500 kbps @ 36 MHz APB1 */
-    /* Prescaler=4, SJW=1, BS1=13, BS2=2 → 36M/(4*(1+13+2)) = 500k */
+    /* Configure bit timing for 500 kbps @ 42 MHz APB1 */
+    /* Prescaler=6, SJW=1, BS1=7, BS2=6 → 42M/(6*(1+7+6)) = 500k */
     CAN_BTR = (0 << 30)        /* Normal mode (not loopback) */
             | (0 << 24)        /* SJW = 1 */
-            | (12 << 16)       /* BS1 = 13 */
-            | (1 << 20)        /* BS2 = 2 */
-            | (3);             /* Prescaler = 4 */
+            | (6 << 16)        /* BS1 = 7 */
+            | (5 << 20)        /* BS2 = 6 */
+            | (5);             /* Prescaler = 6 */
 
     /* Configure filters: accept all standard frames for OBD-II */
     /* Enter filter initialization mode */
@@ -771,10 +785,10 @@ void obd2_tick(void) {
 #include "obd2.h"
 #include <stdint.h>
 
-/* GPIO for LED (PC13) */
-#define RCC_APB2ENR   (*(volatile uint32_t *)0x40021018)
-#define GPIOC_CRH     (*(volatile uint32_t *)0x40011004)
-#define GPIOC_ODR     (*(volatile uint32_t *)0x4001100C)
+/* GPIO for LED (PA5 on Netduino Plus 2) */
+#define RCC_AHB1ENR_LED (*(volatile uint32_t *)0x40023830)
+#define GPIOA_MODER_LED (*(volatile uint32_t *)0x40020000)
+#define GPIOA_ODR_LED   (*(volatile uint32_t *)0x40020014)
 
 static volatile int rx_frame_available = 0;
 static CanFrame rx_frame;
@@ -813,10 +827,10 @@ static const uint8_t pid_sequence[] = {
 static int pid_index = 0;
 
 int main(void) {
-    /* Enable GPIOC */
-    RCC_APB2ENR |= (1 << 4);
-    GPIOC_CRH &= ~(0xF << 20);
-    GPIOC_CRH |= (0x3 << 20);
+    /* Enable GPIOA and configure PA5 as output */
+    RCC_AHB1ENR_LED |= (1 << 0);
+    GPIOA_MODER_LED &= ~(0x3 << 10);
+    GPIOA_MODER_LED |= (0x1 << 10);
 
     /* Initialize CAN at 500 kbps */
     bxcan_init(500000);
@@ -834,7 +848,7 @@ int main(void) {
             obd2_process_frame(&rx_frame);
 
             /* Toggle LED on successful reception */
-            GPIOC_ODR ^= (1 << 13);
+            GPIOA_ODR_LED ^= (1 << 5);
         }
 
         /* Check if we can request next PID */
@@ -858,7 +872,7 @@ int main(void) {
 ```makefile
 CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
-CFLAGS = -mcpu=cortex-m3 -mthumb -Os -g -Wall -Wextra -nostdlib -ffreestanding
+CFLAGS = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -g -Wall -Wextra -nostdlib -ffreestanding
 LDFLAGS = -T linker.ld
 
 all: can.elf can.bin
@@ -956,9 +970,9 @@ lto = true
 
 ```toml
 [build]
-target = "thumbv7m-none-eabi"
+target = "thumbv7em-none-eabihf"
 
-[target.thumbv7m-none-eabi]
+[target.thumbv7em-none-eabihf]
 runner = "renode --disable-gui can.resc"
 rustflags = ["-C", "link-arg=-Tlink.x"]
 ```
@@ -968,8 +982,8 @@ rustflags = ["-C", "link-arg=-Tlink.x"]
 ```
 MEMORY
 {
-    FLASH : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM : ORIGIN = 0x20000000, LENGTH = 128K
 }
 ```
 
@@ -1229,27 +1243,44 @@ impl CanDriver {
     }
 
     unsafe fn init(&self) {
-        let rcc_apb1enr = 0x4002_101C as *mut u32;
-        let rcc_apb2enr = 0x4002_1018 as *mut u32;
-        let gpioa_crh = 0x4001_0804 as *mut u32;
-        let gpioa_odr = 0x4001_080C as *mut u32;
+        let rcc_ahb1enr = 0x4002_3830 as *mut u32;
+        let rcc_apb1enr = 0x4002_3840 as *mut u32;
+        let gpioa_moder = 0x4002_0000 as *mut u32;
+        let gpioa_otyper = 0x4002_0004 as *mut u32;
+        let gpioa_ospeedr = 0x4002_0008 as *mut u32;
+        let gpioa_pupdr = 0x4002_000C as *mut u32;
+        let gpioa_afrh = 0x4002_0024 as *mut u32;
 
-        // Enable clocks
+        // Enable clocks (GPIO on AHB1, CAN on APB1)
+        rcc_ahb1enr.write_volatile(rcc_ahb1enr.read_volatile() | (1 << 0));
         rcc_apb1enr.write_volatile(rcc_apb1enr.read_volatile() | (1 << 25));
-        rcc_apb2enr.write_volatile(rcc_apb2enr.read_volatile() | (1 << 2));
 
-        // PA11 (RX) input pull-up, PA12 (TX) alt func push-pull
-        let crh = gpioa_crh.read_volatile();
-        gpioa_crh.write_volatile((crh & !(0xFF << 12)) | (0x8 << 12) | (0xB << 16));
-        gpioa_odr.write_volatile(gpioa_odr.read_volatile() | (1 << 11));
+        // PA11 (RX) and PA12 (TX) as AF9 (CAN)
+        // MODER: AF mode (10) for PA11 and PA12
+        let moder = gpioa_moder.read_volatile();
+        gpioa_moder.write_volatile((moder & !(0xF << 22)) | (0x8 << 22) | (0x8 << 24));
+
+        // OTYPER: push-pull for PA12
+        gpioa_otyper.write_volatile(gpioa_otyper.read_volatile() & ~(1 << 12));
+
+        // OSPEEDR: high speed for PA12
+        gpioa_ospeedr.write_volatile(gpioa_ospeedr.read_volatile() | (0x3 << 24));
+
+        // PUPDR: pull-up for PA11
+        gpioa_pupdr.write_volatile((gpioa_pupdr.read_volatile() & ~(0x3 << 22)) | (0x1 << 22));
+
+        // AFRH: AF9 for PA11 (bits [15:12]) and PA12 (bits [19:16])
+        let afrh = gpioa_afrh.read_volatile();
+        gpioa_afrh.write_volatile((afrh & !(0xFF << 12)) | (0x9 << 12) | (0x9 << 16));
 
         // Request init mode
         self.regs.write(self.regs.mcr, self.regs.read(self.regs.mcr) | (1 << 0));
         while self.regs.read(self.regs.msr) & (1 << 0) == 0 {}
 
-        // Bit timing: 500kbps @ 36MHz
+        // Bit timing: 500kbps @ 42MHz
+        // Prescaler=6, BS1=7, BS2=6 → 42M/(6*14) = 500k
         self.regs.write(self.regs.btr,
-            (0 << 30) | (0 << 24) | (12 << 16) | (1 << 20) | 3);
+            (0 << 30) | (0 << 24) | (6 << 16) | (5 << 20) | 5);
 
         // Filter bank 0: mask mode, 32-bit, accept 0x7E0-0x7EF
         self.regs.write(self.regs.fs1r, self.regs.read(self.regs.fs1r) | 1);
@@ -1416,9 +1447,9 @@ fn process_obd2_response(frame: &CanFrame) {
  * GPIO and Delay
  * ============================================================ */
 
-const RCC_APB2ENR: *mut u32 = 0x4002_1018 as _;
-const GPIOC_CRH: *mut u32 = 0x4001_1004 as _;
-const GPIOC_ODR: *mut u32 = 0x4001_100C as _;
+const RCC_AHB1ENR: *mut u32 = 0x4002_3830 as _;
+const GPIOA_MODER: *mut u32 = 0x4002_0000 as _;
+const GPIOA_ODR: *mut u32 = 0x4002_0014 as _;
 
 fn delay_ms(ms: u32) {
     let systick = unsafe { &*cortex_m::peripheral::SYST::PTR };
@@ -1440,10 +1471,10 @@ fn delay_ms(ms: u32) {
 #[entry]
 fn main() -> ! {
     unsafe {
-        // Enable GPIOC
-        (*RCC_APB2ENR) |= 1 << 4;
-        let crh = (*GPIOC_CRH).read_volatile();
-        (*GPIOC_CRH).write_volatile((crh & !(0xF << 20)) | (0x3 << 20));
+        // Enable GPIOA and configure PA5 as output
+        (*RCC_AHB1ENR) |= 1 << 0;
+        let moder = (*GPIOA_MODER).read_volatile();
+        (*GPIOA_MODER).write_volatile((moder & !(0x3 << 10)) | (0x1 << 10));
 
         // Initialize CAN
         CAN.init();
@@ -1461,9 +1492,9 @@ fn main() -> ! {
                 RX_FRAME_AVAILABLE = false;
                 process_obd2_response(&RX_FRAME);
 
-                // Toggle LED
-                let odr = (*GPIOC_ODR).read_volatile();
-                (*GPIOC_ODR).write_volatile(odr ^ (1 << 13));
+                // Toggle LED (PA5)
+                let odr = (*GPIOA_ODR).read_volatile();
+                (*GPIOA_ODR).write_volatile(odr ^ (1 << 5));
             }
 
             if !WAITING_RESPONSE {
@@ -1530,9 +1561,10 @@ project CAN is
    for Target use "arm-eabi";
 
    package Compiler is
-      for Default_Switches ("Ada") use
-        ("-O2", "-g", "-mcpu=cortex-m3", "-mthumb",
-         "-fstack-check", "-gnatp", "-gnata");
+       for Default_Switches ("Ada") use
+         ("-O2", "-g", "-mcpu=cortex-m4", "-mthumb",
+          "-mfloat-abi=hard", "-mfpu=fpv4-sp-d16",
+          "-fstack-check", "-gnatp", "-gnata");
    end Compiler;
 
    package Linker is
@@ -1688,36 +1720,42 @@ package body Can_Driver is
    CAN_FIR0 : Unsigned_32 with Address => System'To_Address (CAN_BASE + 16#240#), Volatile => True;
    CAN_FIR1 : Unsigned_32 with Address => System'To_Address (CAN_BASE + 16#244#), Volatile => True;
 
-   -- RCC
-   RCC_APB1ENR : Unsigned_32 with Address => System'To_Address (16#4002_101C#), Volatile => True;
-   RCC_APB2ENR : Unsigned_32 with Address => System'To_Address (16#4002_1018#), Volatile => True;
-   GPIOA_CRH   : Unsigned_32 with Address => System'To_Address (16#4001_0804#), Volatile => True;
-   GPIOA_ODR   : Unsigned_32 with Address => System'To_Address (16#4001_080C#), Volatile => True;
+    -- RCC — STM32F4
+    RCC_AHB1ENR : Unsigned_32 with Address => System'To_Address (16#4002_3830#), Volatile => True;
+    RCC_APB1ENR : Unsigned_32 with Address => System'To_Address (16#4002_3840#), Volatile => True;
+    GPIOA_MODER : Unsigned_32 with Address => System'To_Address (16#4002_0000#), Volatile => True;
+    GPIOA_OTYPER: Unsigned_32 with Address => System'To_Address (16#4002_0004#), Volatile => True;
+    GPIOA_OSPEEDR: Unsigned_32 with Address => System'To_Address (16#4002_0008#), Volatile => True;
+    GPIOA_PUPDR : Unsigned_32 with Address => System'To_Address (16#4002_000C#), Volatile => True;
+    GPIOA_AFRH  : Unsigned_32 with Address => System'To_Address (16#4002_0024#), Volatile => True;
 
-   procedure Initialize (Bitrate : Unsigned_32) is
-      pragma Unreferenced (Bitrate);
-   begin
-      -- Enable clocks
-      RCC_APB1ENR := RCC_APB1ENR or (1 << 25);
-      RCC_APB2ENR := RCC_APB2ENR or (1 << 2);
+    procedure Initialize (Bitrate : Unsigned_32) is
+       pragma Unreferenced (Bitrate);
+    begin
+       -- Enable clocks (GPIO on AHB1, CAN on APB1)
+       RCC_AHB1ENR := RCC_AHB1ENR or (1 << 0);
+       RCC_APB1ENR := RCC_APB1ENR or (1 << 25);
 
-      -- PA11 RX, PA12 TX
-      declare
-         CRH : constant Unsigned_32 := GPIOA_CRH;
-      begin
-         GPIOA_CRH := (CRH and not (16#FF# << 12)) or
-                      (16#8# << 12) or (16#B# << 16);
-      end;
-      GPIOA_ODR := GPIOA_ODR or (1 << 11);
+       -- PA11 RX, PA12 TX as AF9 (CAN) on STM32F4
+       declare
+          Moder : constant Unsigned_32 := GPIOA_MODER;
+       begin
+          GPIOA_MODER := (Moder and not (16#FF# << 22)) or
+                       (16#8# << 22) or (16#8# << 24);
+       end;
+       GPIOA_PUPDR := (GPIOA_PUPDR and not (16#3# << 22)) or (16#1# << 22);
+       GPIOA_AFRH := (GPIOA_AFRH and not (16#FF# << 12)) or
+                     (16#9# << 12) or (16#9# << 16);
 
-      -- Request init mode
-      CAN.MCR := CAN.MCR or (1 << 0);
-      while (CAN.MSR and (1 << 0)) = 0 loop
-         null;
-      end loop;
+       -- Request init mode
+       CAN.MCR := CAN.MCR or (1 << 0);
+       while (CAN.MSR and (1 << 0)) = 0 loop
+          null;
+       end loop;
 
-      -- Bit timing: 500kbps @ 36MHz
-      CAN.BTR := (0 << 30) or (0 << 24) or (12 << 16) or (1 << 20) or 3;
+       -- Bit timing: 500kbps @ 42MHz
+       -- Prescaler=6, BS1=7, BS2=6 → 42M/(6*14) = 500k
+       CAN.BTR := (0 << 30) or (0 << 24) or (6 << 16) or (5 << 20) or 5;
 
       -- Filter: accept 0x7E0-0x7EF
       CAN_FS1R := CAN_FS1R or 1;
@@ -1983,16 +2021,16 @@ procedure Main is
 
    type UInt32 is mod 2**32;
 
-   RCC_APB2ENR : UInt32 with
-     Address => System'To_Address (16#4002_1018#),
+   RCC_AHB1ENR : UInt32 with
+     Address => System'To_Address (16#4002_3830#),
      Volatile => True;
 
-   GPIOC_CRH : UInt32 with
-     Address => System'To_Address (16#4001_1004#),
+   GPIOA_MODER : UInt32 with
+     Address => System'To_Address (16#4002_0000#),
      Volatile => True;
 
-   GPIOC_ODR : UInt32 with
-     Address => System'To_Address (16#4001_100C#),
+   GPIOA_ODR : UInt32 with
+     Address => System'To_Address (16#4002_0014#),
      Volatile => True;
 
    Rx_Frame_Available : Boolean := False;
@@ -2012,12 +2050,12 @@ procedure Main is
    end Delay_MS;
 
 begin
-   -- Enable GPIOC
-   RCC_APB2ENR := RCC_APB2ENR or (1 << 4);
+   -- Enable GPIOA and configure PA5 as output
+   RCC_AHB1ENR := RCC_AHB1ENR or (1 << 0);
    declare
-      CRH : constant UInt32 := GPIOC_CRH;
+      Moder : constant UInt32 := GPIOA_MODER;
    begin
-      GPIOC_CRH := (CRH and not (16#F# << 20)) or (16#3# << 20);
+      GPIOA_MODER := (Moder and not (16#3# << 10)) or (16#1# << 10);
    end;
 
    -- Initialize CAN and OBD-II
@@ -2031,7 +2069,7 @@ begin
       if Rx_Frame_Available then
          Rx_Frame_Available := False;
          if Obd2.Process_Frame (Rx_Frame) then
-            GPIOC_ODR := GPIOC_ODR xor (1 << 13);
+            GPIOA_ODR := GPIOA_ODR xor (1 << 5);
          end if;
       end if;
 
@@ -2114,8 +2152,8 @@ pub fn build(b: *std.Build) void {
 ```ld
 MEMORY
 {
-    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
 ENTRY(Reset_Handler)
@@ -2316,11 +2354,14 @@ const CanRegs = extern struct {
 const CAN_BASE: u32 = 0x40006400;
 const can = @as(*CanRegs, @ptrFromInt(CAN_BASE));
 
-// RCC
-const RCC_APB1ENR = @as(*volatile u32, @ptrFromInt(0x4002101C));
-const RCC_APB2ENR = @as(*volatile u32, @ptrFromInt(0x40021018));
-const GPIOA_CRH = @as(*volatile u32, @ptrFromInt(0x40010804));
-const GPIOA_ODR = @as(*volatile u32, @ptrFromInt(0x4001080C));
+// RCC — STM32F4
+const RCC_AHB1ENR = @as(*volatile u32, @ptrFromInt(0x40023830));
+const RCC_APB1ENR = @as(*volatile u32, @ptrFromInt(0x40023840));
+const GPIOA_MODER = @as(*volatile u32, @ptrFromInt(0x40020000));
+const GPIOA_OTYPER = @as(*volatile u32, @ptrFromInt(0x40020004));
+const GPIOA_OSPEEDR = @as(*volatile u32, @ptrFromInt(0x40020008));
+const GPIOA_PUPDR = @as(*volatile u32, @ptrFromInt(0x4002000C));
+const GPIOA_AFRH = @as(*volatile u32, @ptrFromInt(0x40020024));
 
 // NVIC
 const NVIC_ISER0 = @as(*volatile u32, @ptrFromInt(0xE000E100));
@@ -2330,21 +2371,23 @@ const NVIC_ISER0 = @as(*volatile u32, @ptrFromInt(0xE000E100));
 // ============================================================
 
 fn can_init() void {
-    // Enable clocks
+    // Enable clocks (GPIO on AHB1, CAN on APB1)
+    RCC_AHB1ENR.* |= (1 << 0);
     RCC_APB1ENR.* |= (1 << 25);
-    RCC_APB2ENR.* |= (1 << 2);
 
-    // PA11 RX (input pull-up), PA12 TX (alt func push-pull)
-    const crh = GPIOA_CRH.*;
-    GPIOA_CRH.* = (crh & ~(@as(u32, 0xFF) << 12)) | (@as(u32, 0x8) << 12) | (@as(u32, 0xB) << 16);
-    GPIOA_ODR.* |= (1 << 11);
+    // PA11 RX, PA12 TX as AF9 (CAN) on STM32F4
+    const moder = GPIOA_MODER.*;
+    GPIOA_MODER.* = (moder & ~(@as(u32, 0xFF) << 22)) | (@as(u32, 0x8) << 22) | (@as(u32, 0x8) << 24);
+    GPIOA_PUPDR.* = (GPIOA_PUPDR.* & ~(@as(u32, 0x3) << 22)) | (@as(u32, 0x1) << 22);
+    GPIOA_AFRH.* = (GPIOA_AFRH.* & ~(@as(u32, 0xFF) << 12)) | (@as(u32, 0x9) << 12) | (@as(u32, 0x9) << 16);
 
     // Request init mode
     can.mcr |= (1 << 0);
     while (can.msr & (1 << 0) == 0) {}
 
-    // Bit timing: 500kbps @ 36MHz
-    can.btr = (0 << 30) | (0 << 24) | (12 << 16) | (1 << 20) | 3;
+    // Bit timing: 500kbps @ 42MHz
+    // Prescaler=6, BS1=7, BS2=6 → 42M/(6*14) = 500k
+    can.btr = (0 << 30) | (0 << 24) | (6 << 16) | (5 << 20) | 5;
 
     // Filter bank 0: mask mode, 32-bit, accept 0x7E0-0x7EF
     can.fs1r |= 1;
@@ -2514,9 +2557,9 @@ fn obd2_tick() void {
 // GPIO and Delay
 // ============================================================
 
-const RCC_APB2ENR_CAN = @as(*volatile u32, @ptrFromInt(0x40021018));
-const GPIOC_CRH_CAN = @as(*volatile u32, @ptrFromInt(0x40011004));
-const GPIOC_ODR_CAN = @as(*volatile u32, @ptrFromInt(0x4001100C));
+const RCC_AHB1ENR_CAN = @as(*volatile u32, @ptrFromInt(0x40023830));
+const GPIOA_MODER_CAN = @as(*volatile u32, @ptrFromInt(0x40020000));
+const GPIOA_ODR_CAN = @as(*volatile u32, @ptrFromInt(0x40020014));
 
 fn delay_ms(ms: u32) void {
     const rvr = @as(*volatile u32, @ptrFromInt(0xE000E014));
@@ -2576,10 +2619,10 @@ export fn Reset_Handler() callconv(.Naked) noreturn {
 }
 
 export fn main() noreturn {
-    // Enable GPIOC
-    RCC_APB2ENR_CAN.* |= (1 << 4);
-    const crh = GPIOC_CRH_CAN.*;
-    GPIOC_CRH_CAN.* = (crh & ~(@as(u32, 0xF) << 20)) | (@as(u32, 0x3) << 20);
+    // Enable GPIOA and configure PA5 as output
+    RCC_AHB1ENR_CAN.* |= (1 << 0);
+    const moder = GPIOA_MODER_CAN.*;
+    GPIOA_MODER_CAN.* = (moder & ~(@as(u32, 0x3) << 10)) | (@as(u32, 0x1) << 10);
 
     // Initialize CAN
     can_init();
@@ -2591,7 +2634,7 @@ export fn main() noreturn {
         if (rx_frame_available) {
             rx_frame_available = false;
             if (obd2_process_frame(&rx_frame)) {
-                GPIOC_ODR_CAN.* ^= (1 << 13);
+                GPIOA_ODR_CAN.* ^= (1 << 5);
             }
         }
 
@@ -2625,13 +2668,13 @@ zig build
 ### Renode Script (`can.resc`)
 
 ```
-# Create two STM32F103 nodes on a CAN bus
+# Create two STM32F407 nodes on a CAN bus
 $bus?=@BusBus
 
-$ecu?=@STM32F103
+$ecu?=@STM32F407
 $ecu.bus -> $bus
 
-$node?=@STM32F103
+$node?=@STM32F407
 $node.bus -> $bus
 
 # Load firmware
@@ -2653,7 +2696,7 @@ renode --disable-gui can.resc
 1. **Check CAN bus activity**: Renode logs show frames transmitted and received on the bus.
 2. **Verify filter configuration**: Only frames matching the configured filter (0x7E0-0x7EF) should reach the RX FIFO.
 3. **Verify OBD-II responses**: The ECU node should respond to service 01 PID requests with properly formatted data.
-4. **Check LED toggling**: Each successful OBD-II response should toggle PC13.
+4. **Check LED toggling**: Each successful OBD-II response should toggle PA5.
 
 ### Renode Monitor Commands
 
@@ -2723,3 +2766,20 @@ renode --disable-gui can.resc
 - Add J1939 support for heavy-duty vehicles (29-bit IDs, PGN/SPN)
 - Implement a CAN bus sniffer/decoder with real-time frame display
 - Compare your driver's latency to a production CAN stack (SocketCAN, CANopenNode)
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 32: bxCAN (MCR, MSR, TSR, RF0R, IER, BTR bit timing, mailbox registers, FIFO, filter banks), Ch. 7: RCC (APB1ENR CAN1EN bit 25), Ch. 8: GPIO (AF9 for CAN on PA11/PA12)
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — NVIC for CAN RX0 interrupt (IRQ 20)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Interrupt handling for CAN
+
+### CAN Standards
+- [ISO 11898-1:2015](https://www.iso.org/standard/63648.html) — CAN 2.0A/B frame format, bit timing, arbitration
+- [SAE J1979](https://www.sae.org/standards/content/j1979_202104/) — OBD-II Service 01 PIDs, request/response format
+
+### Tools & Emulation
+- [Renode Documentation](https://docs.renode.io/) — CAN bus multi-node simulation, CAN analyzer

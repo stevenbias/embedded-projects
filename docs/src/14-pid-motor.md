@@ -931,9 +931,9 @@ arm-none-eabi-gcc \
     -O2 -Wall -Wextra -Wpedantic -Wconversion \
     -fno-common -ffunction-sections -fdata-sections \
     -nostdlib \
-    -T stm32f407vg.ld \
+    -T stm32f405rg.ld \
     main.c pid_controller.c fault_detection.c watchdog.c \
-    startup_stm32f407xx.s \
+    startup_stm32f405xx.s \
     -o motor_control.elf
 
 # Generate binary
@@ -947,7 +947,7 @@ arm-none-eabi-size motor_control.elf
 
 ```bash
 qemu-system-arm \
-    -M stm32f4-discovery \
+    -M netduinoplus2 \
     -kernel motor_control.bin \
     -serial stdio \
     -d unimp,guest_errors \
@@ -969,7 +969,7 @@ edition = "2021"
 cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7"
 panic-halt = "0.2"
-stm32f4xx-hal = { version = "0.21", features = ["stm32f407"] }
+stm32f4xx-hal = { version = "0.21", features = ["stm32f405"] }
 embedded-hal = "1.0"
 heapless = "0.8"
 num-traits = { version = "0.2", default-features = false }
@@ -2349,3 +2349,19 @@ gcc -O2 -o test_pid test_pid.c pid_controller.c -lm
 - [ ] Simulated motor response test showing PID convergence
 - [ ] Fault trigger test showing correct state transitions
 - [ ] UART debug output with state, PWM, speed, and current readings
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 17: TIM1–TIM8 (PWM generation for motor control), Ch. 18: ADC (current/voltage/temperature sensing), Ch. 34: IWDG (KR, PR, RLR, SR — independent watchdog for fault detection), Ch. 7: RCC (clock configuration)
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — FPU (FPv4-SP-D16 for floating-point PID), Ch. 4: Memory model (fixed-point arithmetic considerations)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — IWDG-like watchdog behavior, fault handling
+- [ARM EABI Specification](https://github.com/ARM-software/abi-aa/releases) — Fixed-point Q15.16 arithmetic conventions
+
+### Standards
+- [ISO 26262](https://www.iso.org/standard/43464.html) — ASIL levels, fault detection requirements
+
+### Tools & Emulation
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — Timer PWM generation, watchdog simulation

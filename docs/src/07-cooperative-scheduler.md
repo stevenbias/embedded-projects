@@ -6,7 +6,7 @@ project: 7
 
 # Project 7: Cooperative Task Scheduler
 
-In this project you will build a cooperative multitasking scheduler from scratch for ARM Cortex-M microcontrollers. You will implement Task Control Blocks, context switching via inline assembly, priority-based scheduling, and a SysTick-driven system tick — in **C, Rust, Ada, and Zig**.
+In this project you will build a cooperative multitasking scheduler from scratch for ARM Cortex-M4F microcontrollers (STM32F405). You will implement Task Control Blocks, context switching via inline assembly, priority-based scheduling, and a SysTick-driven system tick — in **C, Rust, Ada, and Zig**.
 
 This is a foundational embedded systems project. Every RTOS you will ever use (FreeRTOS, Zephyr, ThreadX) is built on exactly these primitives. By implementing it yourself, you will understand what happens when a task yields, how the stack pointer moves, and why the PendSV exception exists.
 
@@ -22,7 +22,7 @@ This is a foundational embedded systems project. Every RTOS you will ever use (F
 
 ## Prerequisites
 
-- ARM Cortex-M3/M4 QEMU (`qemu-system-arm`)
+- ARM Cortex-M4F QEMU (`qemu-system-arm`)
 - ARM GCC toolchain (`arm-none-eabi-gcc`)
 - GDB with ARM support (`arm-none-eabi-gdb`)
 - Rust: `cargo`, `cargo-embed` or `probe-rs`, `cortex-m` crate
@@ -140,8 +140,8 @@ scheduler-c/
 ```ld
 MEMORY
 {
-    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH (rx) : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM (rwx)  : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
 ENTRY(Reset_Handler)
@@ -315,8 +315,8 @@ static int select_next_task(void) {
 
 /* Start the scheduler — must be called from main() */
 void scheduler_start(void) {
-    /* Configure SysTick: 1ms tick at 8MHz HSI */
-    *((volatile uint32_t *)0xE000E010) = 8000 - 1; /* LOAD */
+    /* Configure SysTick: 1ms tick at 16MHz HSI */
+    *((volatile uint32_t *)0xE000E010) = 16000 - 1; /* LOAD */
     *((volatile uint32_t *)0xE000E014) = 0;         /* VAL */
     *((volatile uint32_t *)0xE000E018) = 0x7;       /* CTRL: enable, tickint, clksrc */
 
@@ -432,39 +432,39 @@ __attribute__((naked)) void PendSV_Handler(void) {
 ```c
 #include "scheduler.h"
 
-/* GPIO registers for STM32F103 (LED on PC13) */
-#define RCC_APB2ENR   (*(volatile uint32_t *)0x40021018)
-#define GPIOC_CRH     (*(volatile uint32_t *)0x40011004)
-#define GPIOC_ODR     (*(volatile uint32_t *)0x4001100C)
+/* GPIO registers for STM32F405 (LED on PA5) */
+#define RCC_AHB1ENR   (*(volatile uint32_t *)0x40023830)
+#define GPIOA_MODER   (*(volatile uint32_t *)0x40020000)
+#define GPIOA_ODR     (*(volatile uint32_t *)0x40020014)
 
 void task_led_fast(void) {
     while (1) {
-        GPIOC_ODR ^= (1 << 13);
+        GPIOA_ODR ^= (1 << 5);
         scheduler_sleep(200); /* Toggle every 200ms */
     }
 }
 
 void task_led_med(void) {
     while (1) {
-        GPIOC_ODR ^= (1 << 13);
+        GPIOA_ODR ^= (1 << 5);
         scheduler_sleep(500); /* Toggle every 500ms */
     }
 }
 
 void task_led_slow(void) {
     while (1) {
-        GPIOC_ODR ^= (1 << 13);
+        GPIOA_ODR ^= (1 << 5);
         scheduler_sleep(1000); /* Toggle every 1000ms */
     }
 }
 
 int main(void) {
-    /* Enable GPIOC clock */
-    RCC_APB2ENR |= (1 << 4);
+    /* Enable GPIOA clock via AHB1 */
+    RCC_AHB1ENR |= (1 << 0);
 
-    /* Configure PC13 as output (CNF=00, MODE=11) */
-    GPIOC_CRH &= ~(0xF << 20);
-    GPIOC_CRH |= (0x3 << 20);
+    /* Configure PA5 as output: MODER bits 11:10 = 01 */
+    GPIOA_MODER &= ~(0x3 << 10);
+    GPIOA_MODER |= (0x1 << 10);
 
     /* Initialize scheduler */
     scheduler_init();
@@ -486,7 +486,7 @@ int main(void) {
 ```makefile
 CC = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
-CFLAGS = -mcpu=cortex-m3 -mthumb -Os -g -Wall -Wextra -nostdlib
+CFLAGS = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -g -Wall -Wextra -nostdlib
 LDFLAGS = -T linker.ld
 
 all: scheduler.elf scheduler.bin
@@ -498,7 +498,7 @@ scheduler.bin: scheduler.elf
 	$(OBJCOPY) -O binary $< $@
 
 flash: scheduler.bin
-	qemu-system-arm -M stm32-f103 -kernel scheduler.bin -S -s &
+	qemu-system-arm -M netduinoplus2 -kernel scheduler.bin -S -s &
 
 clean:
 	rm -f scheduler.elf scheduler.bin
@@ -556,7 +556,7 @@ int main(void);
 
 ```bash
 make
-qemu-system-arm -M stm32-f103 -kernel scheduler.bin -S -s &
+qemu-system-arm -M netduinoplus2 -kernel scheduler.bin -S -s &
 arm-none-eabi-gdb scheduler.elf
 ```
 
@@ -604,10 +604,10 @@ lto = true
 
 ```toml
 [build]
-target = "thumbv7m-none-eabi"
+target = "thumbv7em-none-eabihf"
 
-[target.thumbv7m-none-eabi]
-runner = "qemu-system-arm -M stm32-f103 -kernel"
+[target.thumbv7em-none-eabihf]
+runner = "qemu-system-arm -M netduinoplus2 -kernel"
 rustflags = ["-C", "link-arg=-Tlink.x"]
 ```
 
@@ -616,8 +616,8 @@ rustflags = ["-C", "link-arg=-Tlink.x"]
 ```
 MEMORY
 {
-    FLASH : ORIGIN = 0x08000000, LENGTH = 256K
-    RAM : ORIGIN = 0x20000000, LENGTH = 64K
+    FLASH : ORIGIN = 0x08000000, LENGTH = 1024K
+    RAM : ORIGIN = 0x20000000, LENGTH = 128K
 }
 ```
 
@@ -793,9 +793,9 @@ fn scheduler_sleep(ticks: u32) {
 }
 
 fn scheduler_start() {
-    /* SysTick: 1ms at 8MHz */
+    /* SysTick: 1ms at 16MHz */
     let systick = unsafe { &*cortex_m::peripheral::SYST::PTR };
-    systick.set_reload(8000 - 1);
+    systick.set_reload(16000 - 1);
     systick.clear_current();
     systick.enable_counter();
     systick.enable_interrupt();
@@ -831,16 +831,16 @@ fn scheduler_start() {
     loop {}
 }
 
-/* GPIO for STM32F103 */
-const RCC_APB2ENR: *mut u32 = 0x4002_1018 as _;
-const GPIOC_CRH: *mut u32 = 0x4001_1004 as _;
-const GPIOC_ODR: *mut u32 = 0x4001_100C as _;
+/* GPIO for STM32F405 */
+const RCC_AHB1ENR: *mut u32 = 0x4002_3830 as _;
+const GPIOA_MODER: *mut u32 = 0x4002_0000 as _;
+const GPIOA_ODR: *mut u32 = 0x4002_0014 as _;
 
 fn task_led_fast() {
     loop {
         unsafe {
-            let odr = GPIOC_ODR.read_volatile();
-            GPIOC_ODR.write_volatile(odr ^ (1 << 13));
+            let odr = GPIOA_ODR.read_volatile();
+            GPIOA_ODR.write_volatile(odr ^ (1 << 5));
         }
         scheduler_sleep(200);
     }
@@ -849,8 +849,8 @@ fn task_led_fast() {
 fn task_led_med() {
     loop {
         unsafe {
-            let odr = GPIOC_ODR.read_volatile();
-            GPIOC_ODR.write_volatile(odr ^ (1 << 13));
+            let odr = GPIOA_ODR.read_volatile();
+            GPIOA_ODR.write_volatile(odr ^ (1 << 5));
         }
         scheduler_sleep(500);
     }
@@ -859,8 +859,8 @@ fn task_led_med() {
 fn task_led_slow() {
     loop {
         unsafe {
-            let odr = GPIOC_ODR.read_volatile();
-            GPIOC_ODR.write_volatile(odr ^ (1 << 13));
+            let odr = GPIOA_ODR.read_volatile();
+            GPIOA_ODR.write_volatile(odr ^ (1 << 5));
         }
         scheduler_sleep(1000);
     }
@@ -869,10 +869,10 @@ fn task_led_slow() {
 #[entry]
 fn main() -> ! {
     unsafe {
-        RCC_APB2ENR.write_volatile(RCC_APB2ENR.read_volatile() | (1 << 4));
-        /* PC13 output */
-        let crh = GPIOC_CRH.read_volatile();
-        GPIOC_CRH.write_volatile((crh & !(0xF << 20)) | (0x3 << 20));
+        RCC_AHB1ENR.write_volatile(RCC_AHB1ENR.read_volatile() | (1 << 0));
+        /* PA5 output: MODER bits 11:10 = 01 */
+        let moder = GPIOA_MODER.read_volatile();
+        GPIOA_MODER.write_volatile((moder & !(0x3 << 10)) | (0x1 << 10));
     }
 
     scheduler_init();
@@ -960,7 +960,7 @@ cargo run --release
 
 In a separate terminal:
 ```bash
-arm-none-eabi-gdb target/thumbv7m-none-eabi/release/scheduler-rust
+arm-none-eabi-gdb target/thumbv7em-none-eabihf/release/scheduler-rust
 (gdb) target remote :1234
 (gdb) break scheduler-rust::task_led_fast
 (gdb) continue
@@ -995,9 +995,9 @@ project Scheduler is
    for Target use "arm-eabi";
 
    package Compiler is
-      for Default_Switches ("Ada") use
-        ("-O2", "-g", "-mcpu=cortex-m3", "-mthumb",
-         "-fstack-check", "-gnatp", "-gnata");
+       for Default_Switches ("Ada") use
+         ("-O2", "-g", "-mcpu=cortex-m4", "-mthumb", "-mfloat-abi=hard", "-mfpu=fpv4-sp-d16",
+          "-fstack-check", "-gnatp", "-gnata");
    end Compiler;
 
    package Linker is
@@ -1158,9 +1158,9 @@ package body Scheduler is
 
    procedure Start is
    begin
-      -- SysTick: 1ms at 8MHz
+      -- SysTick: 1ms at 16MHz
       Asm ("LDR R0, =0xE000E010" & LF & HT &
-           "LDR R1, =7999" & LF & HT &
+           "LDR R1, =15999" & LF & HT &
            "STR R1, [R0]" & LF & HT &
            "LDR R0, =0xE000E014" & LF & HT &
            "MOV R1, #0" & LF & HT &
@@ -1284,13 +1284,13 @@ with System.Machine_Code; use System.Machine_Code;
 package body Tasks is
 
    type UInt32 is mod 2**32;
-   GPIOC_ODR : UInt32 with
-     Address => System'To_Address (16#4001_100C#),
+   GPIOA_ODR : UInt32 with
+     Address => System'To_Address (16#4002_0014#),
      Volatile => True;
 
    procedure Toggle_LED is
    begin
-      GPIOC_ODR := GPIOC_ODR xor (1 << 13);
+      GPIOA_ODR := GPIOA_ODR xor (1 << 5);
    end Toggle_LED;
 
    procedure LED_Fast is
@@ -1331,23 +1331,23 @@ procedure Main is
 
    type UInt32 is mod 2**32;
 
-   RCC_APB2ENR : UInt32 with
-     Address => System'To_Address (16#4002_1018#),
+   RCC_AHB1ENR : UInt32 with
+     Address => System'To_Address (16#4002_3830#),
      Volatile => True;
 
-   GPIOC_CRH : UInt32 with
-     Address => System'To_Address (16#4001_1004#),
+   GPIOA_MODER : UInt32 with
+     Address => System'To_Address (16#4002_0000#),
      Volatile => True;
 
 begin
-   -- Enable GPIOC clock
-   RCC_APB2ENR := RCC_APB2ENR or (1 << 4);
+   -- Enable GPIOA clock via AHB1
+   RCC_AHB1ENR := RCC_AHB1ENR or (1 << 0);
 
-   -- Configure PC13 as output
+   -- Configure PA5 as output: MODER bits 11:10 = 01
    declare
-      CRH : constant UInt32 := GPIOC_CRH;
+      MODER : constant UInt32 := GPIOA_MODER;
    begin
-      GPIOC_CRH := (CRH and not (16#F# << 20)) or (16#3# << 20);
+      GPIOA_MODER := (MODER and not (16#3# << 10)) or (16#1# << 10);
    end;
 
    Initialize;
@@ -1363,7 +1363,7 @@ end Main;
 
 ```bash
 gprbuild -P scheduler.gpr
-qemu-system-arm -M stm32-f103 -kernel obj/main -S -s &
+qemu-system-arm -M netduinoplus2 -kernel obj/main -S -s &
 arm-none-eabi-gdb obj/main
 ```
 
@@ -1552,12 +1552,12 @@ fn select_next_task() isize {
 }
 
 fn scheduler_start() noreturn {
-    // SysTick: 1ms at 8MHz
-    const systick_load = @as(*volatile u32, @ptrFromInt(0xE000E010));
-    const systick_val = @as(*volatile u32, @ptrFromInt(0xE000E014));
-    const systick_ctrl = @as(*volatile u32, @ptrFromInt(0xE000E018));
+      // SysTick: 1ms at 16MHz
+      const systick_load = @as(*volatile u32, @ptrFromInt(0xE000E010));
+      const systick_val = @as(*volatile u32, @ptrFromInt(0xE000E014));
+      const systick_ctrl = @as(*volatile u32, @ptrFromInt(0xE000E018));
 
-    systick_load.* = 8000 - 1;
+      systick_load.* = 16000 - 1;
     systick_val.* = 0;
     systick_ctrl.* = 0x7; // enable, tickint, clksrc
 
@@ -1700,28 +1700,28 @@ export fn SysTick_Handler() void {
     }
 }
 
-// GPIO registers
-const RCC_APB2ENR = @as(*volatile u32, @ptrFromInt(0x40021018));
-const GPIOC_CRH = @as(*volatile u32, @ptrFromInt(0x40011004));
-const GPIOC_ODR = @as(*volatile u32, @ptrFromInt(0x4001100C));
+// GPIO registers for STM32F405
+const RCC_AHB1ENR = @as(*volatile u32, @ptrFromInt(0x40023830));
+const GPIOA_MODER = @as(*volatile u32, @ptrFromInt(0x40020000));
+const GPIOA_ODR = @as(*volatile u32, @ptrFromInt(0x40020014));
 
 fn task_led_fast() noreturn {
     while (true) {
-        GPIOC_ODR.* ^= (1 << 13);
+        GPIOA_ODR.* ^= (1 << 5);
         scheduler_sleep(200);
     }
 }
 
 fn task_led_med() noreturn {
     while (true) {
-        GPIOC_ODR.* ^= (1 << 13);
+        GPIOA_ODR.* ^= (1 << 5);
         scheduler_sleep(500);
     }
 }
 
 fn task_led_slow() noreturn {
     while (true) {
-        GPIOC_ODR.* ^= (1 << 13);
+        GPIOA_ODR.* ^= (1 << 5);
         scheduler_sleep(1000);
     }
 }
@@ -1756,12 +1756,12 @@ export fn Reset_Handler() callconv(.Naked) noreturn {
 }
 
 export fn main() noreturn {
-    // Enable GPIOC
-    RCC_APB2ENR.* |= (1 << 4);
+    // Enable GPIOA via AHB1
+    RCC_AHB1ENR.* |= (1 << 0);
 
-    // PC13 output
-    const crh = GPIOC_CRH.*;
-    GPIOC_CRH.* = (crh & ~(@as(u32, 0xF) << 20)) | (@as(u32, 0x3) << 20);
+    // PA5 output: MODER bits 11:10 = 01
+    const moder = GPIOA_MODER.*;
+    GPIOA_MODER.* = (moder & ~(@as(u32, 0x3) << 10)) | (@as(u32, 0x1) << 10);
 
     scheduler_init();
     _ = scheduler_create_task(task_led_fast, 1);
@@ -1783,7 +1783,7 @@ comptime {
 
 ```bash
 zig build
-qemu-system-arm -M stm32-f103 -kernel zig-out/bin/scheduler -S -s &
+qemu-system-arm -M netduinoplus2 -kernel zig-out/bin/scheduler -S -s &
 arm-none-eabi-gdb zig-out/bin/scheduler
 ```
 
@@ -1795,7 +1795,7 @@ arm-none-eabi-gdb zig-out/bin/scheduler
 
 ```bash
 # Terminal 1: Start QEMU
-qemu-system-arm -M stm32-f103 -kernel scheduler.bin -S -s &
+qemu-system-arm -M netduinoplus2 -kernel scheduler.bin -S -s &
 
 # Terminal 2: Connect GDB
 arm-none-eabi-gdb scheduler.elf
@@ -1908,3 +1908,19 @@ $3 = (uint32_t *) 0x200007c0
 - Add mutexes and semaphores for task synchronization
 - Port to a different architecture (RISC-V, ARMv8-M)
 - Compare your scheduler's overhead to FreeRTOS or Zephyr
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 7: RCC (clock enable), SCB registers (SHPR3 for PendSV priority)
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Memory map
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: Programmer's Model (MSP vs PSP, CONTROL register, EXC_RETURN values 0xFFFFFFF9/0xFFFFFFFD), Ch. 4: Memory Model (stack alignment)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception entry and return (hardware stacking of R0-R3, R12, LR, PC, xPSR), B1.5: PendSV exception (designed for context switching), SysTick timer
+- [ARM EABI Specification (AAPCS)](https://github.com/ARM-software/abi-aa/releases) — Calling convention, callee-saved registers (R4-R11)
+
+### Tools & Emulation
+- [QEMU ARM Documentation](https://www.qemu.org/docs/master/system/target-arm.html) — GDB watchpoints on PSP, register inspection
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — netduinoplus2 machine

@@ -1143,8 +1143,8 @@ const ByteRingBuffer = @import("ringbuf.zig").ByteRingBuffer;
 var uart_rx_buf: ByteRingBuffer = ByteRingBuffer.init();
 
 export fn USART1_IRQHandler() void {
-    // Read data register (STM32F103)
-    const usart1_dr = @as(*volatile u8, @ptrFromInt(0x40013804));
+    // Read data register (STM32F405)
+    const usart1_dr = @as(*volatile u8, @ptrFromInt(0x40011004));
     const data = usart1_dr.*;
 
     // Push to ring buffer (non-blocking, safe in interrupt)
@@ -1210,11 +1210,11 @@ int main(void) {
 
 ```bash
 # Build the application
-arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -Os -g \
+arm-none-eabi-gcc -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -mthumb -Os -g \
     -o uart_ringbuf.elf uart_ringbuf.c ringbuf.c startup.c
 
 # Run QEMU with UART connected to stdio
-qemu-system-arm -M stm32-f103 -kernel uart_ringbuf.bin \
+qemu-system-arm -M netduinoplus2 -kernel uart_ringbuf.bin \
     -serial stdio -S -s &
 
 # In GDB, verify the ring buffer state
@@ -1280,3 +1280,18 @@ $1 = {head = 5, tail = 0, capacity = 256}
 - Add DMA integration: ring buffer as the DMA circular buffer
 - Implement a lock-free queue with dynamic allocation
 - Compare throughput and latency against a mutex-based buffer
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 30: USART (interrupt-driven RX/TX for ring buffer integration)
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 4: Memory model (memory barriers, execution ordering)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B2.2: Memory ordering (DMB, DSB, ISB), A3.4: Load/store exclusive (LDREX/STREX for atomic operations), weakly-ordered memory model
+- [ARM EABI Specification](https://github.com/ARM-software/abi-aa/releases) — Memory model, atomic operation semantics
+
+### Tools & Emulation
+- [QEMU ARM Documentation](https://www.qemu.org/docs/master/system/target-arm.html) — UART interrupt simulation for ring buffer testing
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — netduinoplus2 machine

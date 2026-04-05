@@ -26,9 +26,9 @@ This project teaches you:
 
 | Property        | Value                              |
 |-----------------|------------------------------------|
-| Board           | Netduino Plus 2                    |
-| MCU             | STM32F205                          |
-| Core            | ARM Cortex-M3                      |
+| Board           | Netduino Plus 2 (QEMU) / NUCLEO-F446RE (HW) |
+| MCU             | STM32F405 / STM32F446              |
+| Core            | ARM Cortex-M4F                     |
 | LED             | PA5 (output)                       |
 | Button          | PA0 (input, EXTI Line 0)           |
 | QEMU Machine    | `netduinoplus2`                    |
@@ -41,7 +41,7 @@ In QEMU, you can simulate a button press by writing to the GPIO input register v
 
 The EXTI (External Interrupt/Event Controller) connects GPIO pins to the NVIC. Each EXTI line (0-15) can be triggered by one GPIO pin with the same number across all ports. EXTI Line 0 can be connected to PA0, PB0, PC0, etc. — but only one at a time, selected via the SYSCFG (or AFIO on older chips) register.
 
-On the STM32F2, the SYSCFG peripheral selects which port drives each EXTI line:
+On the STM32F4, the SYSCFG peripheral selects which port drives each EXTI line:
 
 ```
 SYSCFG_EXTICR1[3:0] selects EXTI0 source:
@@ -78,7 +78,7 @@ SYSCFG_EXTICR1[3:0] selects EXTI0 source:
 
 ### NVIC Interrupt Priorities
 
-The Cortex-M3 NVIC supports 8 priority levels (3 bits implemented, values 0-7). **Lower number = higher priority**.
+The Cortex-M4 NVIC supports 8 priority levels (3 bits implemented, values 0-7). **Lower number = higher priority**.
 
 | Priority | Meaning                        |
 |----------|--------------------------------|
@@ -135,7 +135,7 @@ This project uses the **counter-based approach** in the SysTick handler for simp
 
 ## Atomic Operations and Critical Sections
 
-When an interrupt handler and the main loop share state, you must prevent data races. On Cortex-M3:
+When an interrupt handler and the main loop share state, you must prevent data races. On Cortex-M4:
 
 - **Critical sections** disable interrupts temporarily (via `cpsid i` / `cpsie i`)
 - **Atomic operations** use LDREX/STREX instructions for lock-free access
@@ -165,10 +165,10 @@ button-interrupts-c/
 ### `startup.s` (Updated with EXTI0 Handler)
 
 ```armasm
-/* startup.s — Cortex-M3 startup with EXTI0 handler */
+/* startup.s — Cortex-M4 startup with EXTI0 handler */
 
     .syntax unified
-    .cpu cortex-m3
+    .cpu cortex-m4
     .thumb
 
     .extern _data_start
@@ -260,12 +260,12 @@ The vector table in `linker.ld` needs to include the SysTick and EXTI0 handlers.
     } > FLASH
 ```
 
-> **Warning:** The vector table index for EXTI0 is **22** (IRQ 6 + 16). The STM32F2 maps EXTI Line 0 to interrupt number 6 in the NVIC, which is index 22 in the vector table (16 system + 6).
+> **Warning:** The vector table index for EXTI0 is **22** (IRQ 6 + 16). The STM32F4 maps EXTI Line 0 to interrupt number 6 in the NVIC, which is index 22 in the vector table (16 system + 6).
 
 ### `main.c`
 
 ```c
-/* main.c — Button interrupts with software debouncing (STM32F205) */
+/* main.c — Button interrupts with software debouncing (STM32F405) */
 
 #include <stdint.h>
 
@@ -314,7 +314,7 @@ static volatile uint32_t debounce_counter = 0;
 static volatile int button_pressed = 0;
 static volatile int last_stable_state = 0;  /* 0 = released, 1 = pressed */
 
-/* Cortex-M3 intrinsic functions (provided by compiler) */
+/* Cortex-M4 intrinsic functions (provided by compiler) */
 extern void __disable_irq(void);
 extern void __enable_irq(void);
 extern uint32_t __get_PRIMASK(void);
@@ -438,7 +438,7 @@ int main(void)
 CC      = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
 
-CFLAGS  = -mcpu=cortex-m3 -mthumb -Os -Wall -Wextra -ffreestanding -nostdlib
+CFLAGS  = -mcpu=cortex-m4 -mfloat-abi=hard -mfpu=fpv4-sp-d16 -mthumb -Os -Wall -Wextra -ffreestanding -nostdlib
 
 TARGET  = button-interrupts
 SRCS    = main.c startup.s
@@ -655,7 +655,7 @@ fn HardFault(_frame: &ExceptionFrame) -> ! {
 ### Build (Rust)
 
 ```bash
-rustup target add thumbv7m-none-eabi
+rustup target add thumbv7em-none-eabihf
 cargo build --release
 ```
 
@@ -942,7 +942,7 @@ arm-eabi-objcopy -O binary obj/main button-interrupts.bin
 ### `src/main.zig`
 
 ```zig
-// main.zig — Button interrupts with atomic state machine (STM32F205)
+// main.zig — Button interrupts with atomic state machine (STM32F405)
 
 const std = @import("std");
 const atomic = std.atomic;
@@ -1169,3 +1169,18 @@ From here, you can:
 - Move to Phase 2 projects with RTOS integration, SPI/I2C peripherals, and more complex interrupt architectures
 
 > **Tip:** The patterns you've learned here — volatile register access, interrupt handlers, debouncing, atomic shared state — translate directly to any ARM Cortex-M chip, and with minor adjustments, to other architectures. The language changes, but the hardware fundamentals remain the same.
+
+---
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 12: SYSCFG (EXTICR1), Ch. 13: EXTI (IMR, RTSR, FTSR, PR), Ch. 14: SysTick timer
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf)
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 8: NVIC (ISER, IPR, priority levels), WFI instruction, DMB/DSB memory barriers
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: Interrupts and exceptions, EXTI to NVIC mapping (IRQ 6 for EXTI0)
+
+### Tools & Emulation
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html)

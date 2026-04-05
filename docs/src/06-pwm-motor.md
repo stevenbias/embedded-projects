@@ -57,21 +57,21 @@ The PWM frequency is determined by the prescaler and auto-reload register:
 f_PWM = f_PCLK / ((PSC + 1) × (ARR + 1))
 ```
 
-For a 72 MHz system clock targeting 20 kHz PWM:
+For a 168 MHz system clock (TIM1 on APB2) targeting 20 kHz PWM:
 
 ```
-72,000,000 / (PSC + 1) / (ARR + 1) = 20,000
+168,000,000 / (PSC + 1) / (ARR + 1) = 20,000
 
-Option 1: PSC = 0,    ARR = 3599  → 72M / 1 / 3600 = 20,000 Hz
-Option 2: PSC = 3,    ARR = 899   → 72M / 4 / 900  = 20,000 Hz
-Option 3: PSC = 71,   ARR = 49    → 72M / 72 / 50  = 20,000 Hz
+Option 1: PSC = 0,    ARR = 8399  → 168M / 1 / 8400 = 20,000 Hz
+Option 2: PSC = 7,    ARR = 2099  → 168M / 8 / 2100 = 20,000 Hz
+Option 3: PSC = 83,   ARR = 99    → 168M / 84 / 100 = 20,000 Hz
 ```
 
 **Choosing PSC and ARR:**
 - Higher ARR = finer duty cycle resolution (ARR + 1 steps)
 - Lower PSC = less prescaler jitter
-- Option 1 gives 3600-step resolution — good for motor control
-- Option 3 gives only 50-step resolution — too coarse
+- Option 1 gives 8400-step resolution — excellent for motor control
+- Option 3 gives only 100-step resolution — too coarse
 
 ### Duty Cycle
 
@@ -80,12 +80,12 @@ The duty cycle is set by the compare register:
 ```
 duty = CCR / (ARR + 1)
 
-For ARR = 3599:
+For ARR = 8399:
   0%   → CCR = 0
-  25%  → CCR = 900
-  50%  → CCR = 1800
-  75%  → CCR = 2700
-  100% → CCR = 3600 (clamped to ARR)
+  25%  → CCR = 2100
+  50%  → CCR = 4200
+  75%  → CCR = 6300
+  100% → CCR = 8400 (clamped to ARR)
 ```
 
 ## PWM Signal Generation
@@ -176,9 +176,9 @@ DTG[1:0] = 11: DT = (32 + DTG[4:0]) × 16 × t_DTS (step = 16×t_DTS)
 
 Where `t_DTS` is the dead-time generator sampling time (derived from the timer clock).
 
-**Example:** At 72 MHz timer clock, t_DTS = 13.89 ns. For 200 ns dead time:
-- DTG[1:0] = 00: DTG = 200 / 13.89 ≈ 14 → `BDTR = 0x0E`
-- Actual dead time: 14 × 13.89 = 194 ns
+**Example:** At 168 MHz timer clock, t_DTS = 5.95 ns. For 200 ns dead time:
+- DTG[1:0] = 00: DTG = 200 / 5.95 ≈ 34 → `BDTR = 0x22`
+- Actual dead time: 34 × 5.95 = 202 ns
 
 > **Warning:** Dead time must exceed the MOSFET turn-off time plus driver propagation delay. Check your MOSFET datasheet for `t_f` (fall time) and `t_r` (rise time). A typical IRLZ44N needs ~50 ns minimum; use 200–500 ns for safety margin.
 
@@ -629,7 +629,7 @@ uint16_t motor_get_current_duty(const motor_controller_t *motor) {
 #include "pwm.h"
 #include <stdio.h>
 
-#define TIM1_BASE 0x40012C00UL
+#define TIM1_BASE 0x40010000UL
 
 static pwm_handle_t hpwm;
 static motor_controller_t motor;
@@ -649,8 +649,8 @@ int main(void) {
         .dead_time_ns = 300,
     };
 
-    pwm_init(&hpwm, TIM1_BASE, 72000000, &config);
-    pwm_enable_channel(&hpwm, PWM_CH1);  /* TIM1_CH1 = PA8 */
+    pwm_init(&hpwm, TIM1_BASE, 168000000, &config);
+    pwm_enable_channel(&hpwm, PWM_CH1);  /* TIM1_CH1 = PA8, AF1 */
 
     /* Configure motor with soft-start ramp */
     ramp_config_t ramp = {
@@ -974,10 +974,10 @@ impl ValidFrequency for Freq20kHz {
 // fn main() -> ! {
 //     let dp = stm32::Peripherals::take().unwrap();
 //     let rcc = dp.RCC.constrain();
-//     let clocks = rcc.cfgr.sysclk(72.MHz()).freeze();
+//     let clocks = rcc.cfgr.sysclk(168.MHz()).freeze();
 //
 //     let gpioa = dp.GPIOA.split();
-//     let ch1 = gpioa.pa8.into_alternate::<6>();
+//     let ch1 = gpioa.pa8.into_alternate::<1>();
 //
 //     // Configure PWM with compile-time frequency validation
 //     let config = PwmConfig::<Freq20kHz>::new(
@@ -985,7 +985,7 @@ impl ValidFrequency for Freq20kHz {
 //         300, // 300ns dead time
 //     );
 //
-//     let resolution = config.resolution(72_000_000);
+//     let resolution = config.resolution(168_000_000);
 //     defmt::println!("PWM resolution: {} steps", resolution);
 //
 //     // Create motor controller with soft-start
@@ -1329,7 +1329,7 @@ procedure Main is
       Step        => 50,
       Interval_MS => 10
    );
-   Timer_Clk : Timer_Clock := 72_000_000;
+   Timer_Clk : Timer_Clock := 168_000_000;
    Resolution : Positive;
    Start_Time : Time;
    Elapsed : Time_Span;
@@ -1634,7 +1634,7 @@ pub fn main() !void {
         .dead_time_ns = 300,
     };
 
-    const timer_clk: u32 = 72_000_000;
+    const timer_clk: u32 = 168_000_000;
     const params = config.calcTimerParams(timer_clk);
     const resolution = config.resolution(timer_clk);
 
@@ -1697,12 +1697,12 @@ pub fn main() !void {
 
 ```bash
 # Build
-arm-none-eabi-gcc -mcpu=cortex-m3 -mthumb -O2 \
+arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O2 \
     -fno-common -ffunction-sections -fdata-sections \
     -Wall -Wextra -Werror \
-    -T stm32f103c8.ld \
+    -T stm32f405rg.ld \
     -o pwm_motor.elf \
-    main.c pwm.c startup_stm32f103xb.c
+    main.c pwm.c startup_stm32f405xx.c
 
 arm-none-eabi-objcopy -O binary pwm_motor.elf pwm_motor.bin
 arm-none-eabi-size pwm_motor.elf
@@ -1711,8 +1711,8 @@ arm-none-eabi-size pwm_motor.elf
 ### Rust
 
 ```bash
-rustup target add thumbv7m-none-eabi
-cargo build --release --target thumbv7m-none-eabi
+rustup target add thumbv7em-none-eabihf
+cargo build --release --target thumbv7em-none-eabihf
 ```
 
 ### Ada
@@ -1725,7 +1725,7 @@ gprbuild -P pwm_motor.gpr -XTARGET=arm-elf -O2
 
 ```bash
 # Bare-metal ARM
-zig build-exe main.zig -target thumbv7m-freestanding -OReleaseSmall
+zig build-exe main.zig -target thumbv7em-freestanding-eabihf -OReleaseSmall
 
 # Host testing (recommended for development)
 zig build-exe main.zig -OReleaseFast
@@ -1746,32 +1746,32 @@ arm-none-eabi-gdb pwm_motor.elf
 (gdb) continue
 
 # Watch the CCR1 register (TIM1 channel 1 compare register)
-# TIM1 CCR1 is at 0x40012C00 + 0x34 = 0x40012C34
-(gdb) watch *0x40012C34
-Hardware watchpoint 2: *0x40012C34
+# TIM1 CCR1 is at 0x40010000 + 0x34 = 0x40010034
+(gdb) watch *0x40010034
+Hardware watchpoint 2: *0x40010034
 
 # Also watch ARR for reference
-(gdb) watch *0x40012C2C
-Hardware watchpoint 3: *0x40012C2C
+(gdb) watch *0x4001002C
+Hardware watchpoint 3: *0x4001002C
 
 # Continue and observe CCR values changing during ramp
 (gdb) continue
 
 # Expected output as ramp progresses:
-# Hardware watchpoint 2: *0x40012C34
+# Hardware watchpoint 2: *0x40010034
 #  Old value = 0
-#  New value = 180    ← 5% of 3600
-# Hardware watchpoint 2: *0x40012C34
-#  Old value = 180
-#  New value = 360    ← 10%
-# Hardware watchpoint 2: *0x40012C34
-#  Old value = 360
-#  New value = 540    ← 15%
-# ...continues until CCR = 2700 (75%)
+#  New value = 420    ← 5% of 8400
+# Hardware watchpoint 2: *0x40010034
+#  Old value = 420
+#  New value = 840    ← 10%
+# Hardware watchpoint 2: *0x40010034
+#  Old value = 840
+#  New value = 1260   ← 15%
+# ...continues until CCR = 6300 (75%)
 
 # Print formatted values during ramp
-(gdb) display (*(volatile uint16_t *)0x40012C34) * 10000 / 3600
-1: (*(volatile uint16_t *)0x40012C34) * 10000 / 3600 = 500
+(gdb) display (*(volatile uint16_t *)0x40010034) * 10000 / 8400
+1: (*(volatile uint16_t *)0x40010034) * 10000 / 8400 = 500
 
 # Set breakpoint at motor_tick to step through ramp algorithm
 (gdb) break motor_tick
@@ -1781,24 +1781,24 @@ Hardware watchpoint 3: *0x40012C2C
 ### Expected GDB Trace
 
 ```
-Hardware watchpoint 2: *0x40012C34
+Hardware watchpoint 2: *0x40010034
  Old value = 0
- New value = 180     (5.00%)
-Hardware watchpoint 2: *0x40012C34
- Old value = 180
- New value = 360     (10.00%)
-Hardware watchpoint 2: *0x40012C34
- Old value = 360
- New value = 540     (15.00%)
+ New value = 420     (5.00%)
+Hardware watchpoint 2: *0x40010034
+ Old value = 420
+ New value = 840     (10.00%)
+Hardware watchpoint 2: *0x40010034
+ Old value = 840
+ New value = 1260    (15.00%)
 ...
-Hardware watchpoint 2: *0x40012C34
- Old value = 2520
- New value = 2700    (75.00%)  ← Target reached, ramp stops
+Hardware watchpoint 2: *0x40010034
+ Old value = 5880
+ New value = 6300    (75.00%)  ← Target reached, ramp stops
 
 # Verify ARR (period register) stays constant
-Hardware watchpoint 3: *0x40012C2C
- Old value = 3599
- New value = 3599    ← Unchanged, as expected
+Hardware watchpoint 3: *0x4001002C
+ Old value = 8399
+ New value = 8399    ← Unchanged, as expected
 ```
 
 ## What You Learned
@@ -1845,3 +1845,16 @@ Hardware watchpoint 3: *0x40012C2C
 - [ ] Non-blocking ramp state machine (stopped/ramping/running)
 - [ ] GDB verification showing CCR register changes during ramp
 - [ ] Output: PWM parameters, ramp progression, final state confirmation
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 17: TIM1–TIM8 (CR1, CCMR, CCER, BDTR dead-time generator, PSC, ARR, CCR), Ch. 7: RCC (APB2ENR for TIM1)
+- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — TIM1 pin mapping (PA8 = TIM1_CH1, AF1)
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — FPU for PID floating-point math
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — SysTick timer for ramp tick interrupts
+
+### Tools & Emulation
+- [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — Timer PWM generation simulation

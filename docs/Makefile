@@ -14,6 +14,7 @@ SRC_DIR      := src
 ASSETS_DIR   := assets
 TEMPLATE_DIR := templates
 OUTPUT_DIR   := output
+SCRIPTS_DIR  := scripts
 
 # Pandoc settings
 PANDOC       := pandoc
@@ -25,6 +26,7 @@ PANDOC_FLAGS := --standalone --toc --toc-depth=3 \
 SRCS := $(SRC_DIR)/00-index.md \
         $(SRC_DIR)/00a-prerequisites.md \
         $(SRC_DIR)/00b-emulator-setup.md \
+        $(SRC_DIR)/00c-gdb-survival-guide.md \
         $(SRC_DIR)/01-led-blinker.md \
         $(SRC_DIR)/02-uart-echo.md \
         $(SRC_DIR)/03-button-interrupts.md \
@@ -53,7 +55,7 @@ EPUB_OUT := $(OUTPUT_DIR)/tutorial.epub
 # Templates
 HTML_TEMPLATE := $(TEMPLATE_DIR)/html.html
 
-.PHONY: all html pdf epub pages clean combined help
+.PHONY: all html pdf epub pages clean combined help search-index search-data serve
 
 # Default: build all
 all: html pdf epub pages
@@ -72,7 +74,7 @@ $(COMBINED_HTML): $(COMBINED)
 # ---- HTML ----
 html: $(HTML_OUT)
 
-$(HTML_OUT): $(COMBINED_HTML) | $(OUTPUT_DIR)
+$(HTML_OUT): $(COMBINED_HTML) $(OUTPUT_DIR)/assets/search-index.json | $(OUTPUT_DIR)
 	@echo "==> Building HTML..."
 	@cp -r $(ASSETS_DIR) $(OUTPUT_DIR)/
 	$(PANDOC) $(PANDOC_FLAGS) \
@@ -85,9 +87,9 @@ $(HTML_OUT): $(COMBINED_HTML) | $(OUTPUT_DIR)
 	@echo "    -> $@"
 
 # ---- Individual Pages ----
-pages: $(OUTPUT_DIR)/.pages-built
+pages: search-data $(OUTPUT_DIR)/.pages-built
 
-$(OUTPUT_DIR)/.pages-built: $(SRCS) $(OUTPUT_DIR)/assets/css/style.css
+$(OUTPUT_DIR)/.pages-built: $(SRCS) $(OUTPUT_DIR)/assets/css/style.css $(OUTPUT_DIR)/assets/js/search-data.js
 	@echo "==> Building individual HTML pages..."
 	@for i in $$(seq 0 $$(($(words $(SRCS)) - 1))); do \
 		src=$$(echo $(SRCS) | cut -d' ' -f$$((i+1))); \
@@ -163,6 +165,22 @@ clean:
 $(OUTPUT_DIR):
 	@mkdir -p $@
 
+# ---- Search Index (JSON + inline JS) ----
+search-index: $(OUTPUT_DIR)/assets/search-index.json
+search-data: $(OUTPUT_DIR)/assets/js/search-data.js
+
+$(OUTPUT_DIR)/assets/search-index.json: $(SRCS) | $(OUTPUT_DIR)
+	@echo "==> Generating search index (JSON)..."
+	@mkdir -p $(OUTPUT_DIR)/assets
+	@python3 $(SCRIPTS_DIR)/generate-search-index.py json $(OUTPUT_DIR)/assets/search-index.json $(SRCS)
+	@echo "    -> $(OUTPUT_DIR)/assets/search-index.json"
+
+$(OUTPUT_DIR)/assets/js/search-data.js: $(SRCS) | $(OUTPUT_DIR)
+	@echo "==> Generating search index (JS)..."
+	@mkdir -p $(OUTPUT_DIR)/assets/js
+	@python3 $(SCRIPTS_DIR)/generate-search-index.py js $(OUTPUT_DIR)/assets/js/search-data.js $(SRCS)
+	@echo "    -> $(OUTPUT_DIR)/assets/js/search-data.js"
+
 # ---- Help ----
 help:
 	@echo "Embedded Mastery Tutorial — Build System"
@@ -172,8 +190,16 @@ help:
 	@echo "  make pdf      Build PDF (via WeasyPrint)"
 	@echo "  make epub     Build EPUB e-book"
 	@echo "  make pages    Build individual HTML pages per project"
+	@echo "  make search-index  Generate search index JSON"
+	@echo "  make search-data   Generate inline search JS (for file:// usage)"
+	@echo "  make serve         Start local HTTP server (localhost:8080)"
 	@echo "  make all      Build all formats (default)"
 	@echo "  make clean    Remove generated files"
 	@echo "  make help     Show this help"
 	@echo ""
 	@echo "Output directory: $(OUTPUT_DIR)/"
+
+# ---- Serve ----
+serve: pages
+	@echo "==> Starting local server at http://localhost:8080"
+	@cd $(OUTPUT_DIR) && python3 -m http.server 8080

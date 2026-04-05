@@ -1912,3 +1912,22 @@ Congratulations — you have completed the Embedded Development Mastery course. 
 - [ ] Fault tree analysis diagram for motor runaway scenario
 - [ ] Comparison report: verification capabilities of each language
 - [ ] Documentation of which verification approach is appropriate for each SIL/ASIL level
+
+## References
+
+### STMicroelectronics Documentation
+- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 5: MPU (Memory Protection Unit for safety-critical memory isolation), Ch. 34: IWDG (watchdog for system health monitoring), Ch. 3: Flash interface (read protection levels)
+
+### ARM Documentation
+- [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 5: MPU (memory protection regions, access permissions), Ch. 3: Fault handlers (HardFault, MemManage, BusFault, UsageFault)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B3: Fault handling (configurable fault handlers, CFSR, HFSR, MMFAR, BFAR), B1.5: Priority masking (BASEPRI for selective interrupt masking)
+
+### Safety Standards
+- [MISRA C:2012 Guidelines](https://www.misra.org.uk/) — All 143 rules for safe C programming
+- [RTCA DO-178C](https://www.rtca.org/shopcontent.asp?itemid=1196) — DAL levels, MC/DC coverage requirements (avionics)
+- [IEC 61508](https://webstore.iec.ch/publication/2083) — SIL levels, safety lifecycle (industrial)
+- [ISO 26262](https://www.iso.org/standard/43464.html) — ASIL levels, software requirements (automotive)
+
+### Verification Tools
+- [GNATprove (SPARK Ada)](https://docs.adacore.com/live/wave/spark2014/html/spark2014_ug/en/gnatprove.html) — Contract-based verification, proof levels
+- [Kani (Rust Model Checker)](https://model-checking.github.io/kani/) — Bounded model checking for Rust
