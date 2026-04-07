@@ -1,1 +1,19 @@
 docs/output/
+
+# C
+*.o
+*.elf
+*.bin
+*.hex
+
+# Rust
+code/**/rust/target/
+code/**/rust/.cargo/.rustc_info.json
+
+# Ada
+code/**/ada/obj/
+code/**/ada/*.ali
+
+# Zig
+code/**/zig/.zig-cache/
+code/**/zig/zig-out/

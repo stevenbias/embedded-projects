@@ -4,6 +4,41 @@
 
 ---
 
+## Repository Structure
+
+```
+projects/
+├── docs/              # Tutorial source files (markdown)
+├── code/              # All implementations
+│   ├── 01-led-blinker/
+│   │   ├── c/         # C implementation
+│   │   ├── rust/      # Rust implementation
+│   │   ├── ada/       # Ada implementation
+│   │   └── zig/       # Zig implementation
+│   └── ...
+├── run-project.sh     # Run a project in all languages
+├── clean-project.sh   # Clean build artifacts
+└── README.md          # This file
+```
+
+### Quick Start
+
+```bash
+# Build and run a project in all languages
+./run-project.sh 01-led-blinker
+
+# Clean build artifacts
+./clean-project.sh 01-led-blinker
+
+# Build a single language
+make -C code/01-led-blinker/c run
+make -C code/01-led-blinker/rust run
+make -C code/01-led-blinker/ada run
+zig build qemu --build-file code/01-led-blinker/zig/build.zig
+```
+
+---
+
 ## Table of Contents
 
 1. [Prerequisites & Toolchain Setup](#1-prerequisites--toolchain-setup)
