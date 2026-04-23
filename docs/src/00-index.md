@@ -59,8 +59,8 @@ This structure reveals what each language does differently — and what stays th
 | # | Project | Description | Est. Hours | Key Concepts |
 |---|---|---|---|---|
 | 1 | [LED Blinker](01-led-blinker.md) | Hello World of embedded — GPIO output, clock config, busy-wait delays | 12 | GPIO, clocks, linker scripts, startup code |
-| 2 | [Button & Interrupts](02-button-interrupts.md) | External interrupts, debouncing, NVIC configuration | 16 | NVIC, EXTI, interrupt handlers, volatile |
-| 3 | [UART Console](03-uart-console.md) | Serial communication, printf-style output, interrupt-driven RX/TX | 20 | UART/USART, ring buffers, stdio retargeting |
+| 2 | [UART Echo Server](02-uart-echo.md) | Serial communication, printf-style output, interrupt-driven RX/TX | 20 | UART/USART, ring buffers, stdio retargeting |
+| 3 | [Button Interrupts & Debouncing](03-button-interrupts.md) | External interrupts, debouncing, NVIC configuration | 16 | NVIC, EXTI, interrupt handlers, volatile |
 
 **Phase 1 total: 48 hours**
 
@@ -68,9 +68,9 @@ This structure reveals what each language does differently — and what stays th
 
 | # | Project | Description | Est. Hours | Key Concepts |
 |---|---|---|---|---|
-| 4 | [PWM & Servo Control](04-pwm-servo.md) | Timer-based PWM generation, duty cycle control, servo sweep | 18 | Timers, PWM, compare registers, prescalers |
-| 5 | [I2C Sensor Reader](05-i2c-sensor.md) | Read temperature/pressure from BMP280 over I2C | 22 | I2C protocol, peripheral drivers, error handling |
-| 6 | [SPI Display Driver](06-spi-display.md) | Drive an SSD1306 OLED display over SPI with graphics primitives | 24 | SPI, DMA, framebuffer, display protocols |
+| 4 | [I2C Temperature Sensor](04-i2c-sensor.md) | Read temperature/pressure from BMP280 over I2C | 22 | I2C protocol, peripheral drivers, error handling |
+| 5 | [SPI Flash Memory](05-spi-flash.md) | Read/write/erase W25Q flash with CRC verification | 24 | SPI, DMA, flash commands, framebuffer |
+| 6 | [PWM Motor Control](06-pwm-motor.md) | Timer-based PWM generation, duty cycle control, servo sweep | 18 | Timers, PWM, compare registers, prescalers |
 
 **Phase 2 total: 64 hours**
 
@@ -78,33 +78,33 @@ This structure reveals what each language does differently — and what stays th
 
 | # | Project | Description | Est. Hours | Key Concepts |
 |---|---|---|---|---|
-| 7 | [Bootloader](07-bootloader.md) | Dual-bank firmware update with CRC validation and jump to application | 28 | Flash programming, memory regions, vector table relocation |
-| 8 | [RTOS Scheduler](08-rtos-scheduler.md) | Build a minimal cooperative/preemptive RTOS from scratch | 30 | Context switching, stacks, scheduler, priorities |
-| 9 | [CAN Bus Node](09-can-bus.md) | CAN 2.0B message transmit/receive with filtering and error handling | 24 | CAN protocol, message buffers, filters, error frames |
+| 7 | [Cooperative Task Scheduler](07-cooperative-scheduler.md) | Build a minimal task scheduler from scratch | 28 | Task control blocks, context switching, stacks |
+| 8 | [Lock-Free Ring Buffer](08-ring-buffer.md) | SPSC ring buffer with memory barriers | 24 | Lock-free data structures, atomics, memory ordering |
+| 9 | [Custom Bootloader](09-bootloader.md) | Dual-bank firmware update with CRC validation and jump to application | 28 | Flash programming, memory regions, vector table relocation |
 
-**Phase 3 total: 82 hours**
+**Phase 3 total: 80 hours**
 
 ### Phase 4: Real-Time & Concurrency (Projects 10-12)
 
 | # | Project | Description | Est. Hours | Key Concepts |
 |---|---|---|---|---|
-| 10 | [Motor Controller](10-motor-controller.md) | PID control loop with encoder feedback and PWM output | 26 | PID algorithms, encoder input, real-time loops |
-| 11 | [Multi-Sensor Fusion](11-sensor-fusion.md) | Combine accelerometer, gyro, and magnetometer with complementary filter | 28 | Sensor fusion, I2C/SPI multiplexing, Kalman basics |
-| 12 | [Wireless Mesh Node](12-wireless-mesh.md) | Simple mesh networking over UART-connected radio modules | 24 | Packet framing, routing tables, mesh topology |
+| 10 | [Minimal RTOS Kernel](10-rtos-kernel.md) | Build a minimal preemptive RTOS from scratch | 32 | Preemptive scheduling, mutexes, message queues |
+| 11 | [CAN Bus Node](11-can-bus.md) | CAN 2.0B message transmit/receive with filtering | 24 | CAN protocol, message buffers, filters |
+| 12 | [Multi-Sensor Data Logger](12-data-logger.md) | SD card logging with FAT32 and multi-sensor sync | 28 | SD card, FAT32, buffered I/O, RTC |
 
-**Phase 4 total: 78 hours**
+**Phase 4 total: 84 hours**
 
 ### Phase 5: Advanced & Expert (Projects 13-15)
 
 | # | Project | Description | Est. Hours | Key Concepts |
 |---|---|---|---|---|
-| 13 | [Secure Boot + Crypto](13-secure-boot.md) | Authenticated boot with AES-128 and SHA-256, secure key storage | 32 | Cryptography, secure elements, authenticated encryption |
-| 14 | [OTA Update System](14-ota-updates.md) | Over-the-air firmware updates with rollback and delta patches | 30 | Delta compression, recovery partitions, update protocols |
-| 15 | [Full IoT Device](15-iot-device.md) | Capstone: sensor node with RTOS, wireless, power management, and cloud telemetry | 36 | System integration, power modes, protocol stacks |
+| 13 | [USB CDC Device](13-usb-cdc.md) | USB device enumeration, CDC-ACM class | 28 | USB protocol, descriptors, endpoints |
+| 14 | [Motor Control with PID](14-pid-motor.md) | PID control loop with encoder feedback | 26 | PID algorithms, encoder input, watchdog |
+| 15 | [Safety-Critical System](15-safety-critical.md) | SPARK formal verification, MISRA compliance | 32 | Formal methods, Safety analysis |
 
-**Phase 5 total: 98 hours**
+**Phase 5 total: 86 hours**
 
-### Grand Total: ~290 Hours (per language)
+### Grand Total: ~370 Hours (all languages)
 
 > **Note:** The 290-hour estimate is per language. Total course time across all 4 languages is approximately 1,160 hours. Most learners spread this across 6-12 months.
 
@@ -173,28 +173,28 @@ See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for complete installat
 
 ### Phase 1: Bare Metal Foundations
 - [Project 1: LED Blinker](01-led-blinker.md)
-- [Project 2: Button & Interrupts](02-button-interrupts.md)
-- [Project 3: UART Console](03-uart-console.md)
+- [Project 2: UART Echo Server](02-uart-echo.md)
+- [Project 3: Button Interrupts & Debouncing](03-button-interrupts.md)
 
 ### Phase 2: Peripherals & Communication
-- [Project 4: PWM & Servo Control](04-pwm-servo.md)
-- [Project 5: I2C Sensor Reader](05-i2c-sensor.md)
-- [Project 6: SPI Display Driver](06-spi-display.md)
+- [Project 4: I2C Temperature Sensor](04-i2c-sensor.md)
+- [Project 5: SPI Flash Memory](05-spi-flash.md)
+- [Project 6: PWM Motor Control](06-pwm-motor.md)
 
 ### Phase 3: Architecture & Systems
-- [Project 7: Bootloader](07-bootloader.md)
-- [Project 8: RTOS Scheduler](08-rtos-scheduler.md)
-- [Project 9: CAN Bus Node](09-can-bus.md)
+- [Project 7: Cooperative Task Scheduler](07-cooperative-scheduler.md)
+- [Project 8: Lock-Free Ring Buffer](08-ring-buffer.md)
+- [Project 9: Custom Bootloader](09-bootloader.md)
 
 ### Phase 4: Real-Time & Concurrency
-- [Project 10: Motor Controller](10-motor-controller.md)
-- [Project 11: Multi-Sensor Fusion](11-sensor-fusion.md)
-- [Project 12: Wireless Mesh Node](12-wireless-mesh.md)
+- [Project 10: Minimal RTOS Kernel](10-rtos-kernel.md)
+- [Project 11: CAN Bus Node](11-can-bus.md)
+- [Project 12: Multi-Sensor Data Logger](12-data-logger.md)
 
 ### Phase 5: Advanced & Expert
-- [Project 13: Secure Boot + Crypto](13-secure-boot.md)
-- [Project 14: OTA Update System](14-ota-updates.md)
-- [Project 15: Full IoT Device](15-iot-device.md)
+- [Project 13: USB CDC Device](13-usb-cdc.md)
+- [Project 14: Motor Control with PID](14-pid-motor.md)
+- [Project 15: Safety-Critical System](15-safety-critical.md)
 
 ### Setup & Reference
 - [Prerequisites & Toolchain Setup](00a-prerequisites.md)
