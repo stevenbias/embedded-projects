@@ -165,7 +165,7 @@ The QEMU monitor provides runtime control and introspection.
 
 ## Renode Setup
 
-Renode is a more feature-rich emulator with excellent peripheral simulation, bus analyzers, and multi-node support. It is essential for **Project 5 (I2C Sensor)** and **Project 9 (CAN Bus)**.
+Renode is a more feature-rich emulator with excellent peripheral simulation, bus analyzers, and multi-node support. It is essential for **Project 4 (I2C Sensor)** and **Project 11 (CAN Bus)**.
 
 ### Installation
 

@@ -16,7 +16,24 @@ This guide walks you through installing every tool needed for this course. Follo
 
 The ARM GCC toolchain is the foundation for C development and is also used by other toolchains for linking.
 
-### Installation
+### Installation (Recommended)
+
+Download the latest Arm GNU Toolchain directly from the Arm Developer website for the newest features and security updates.
+
+```bash
+# Download latest for x86_64 Linux
+wget https://developer.arm.com/-/media/Files/downloads/gnu/15.2.rel1/binrel/arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz
+
+# Extract to /opt/
+tar xJf arm-gnu-toolchain-15.2.rel1-x86_64-arm-none-eabi.tar.xz -C /opt/
+
+# Add to PATH (add to ~/.bashrc or ~/.zshrc for persistence)
+export PATH="/opt/arm-gnu-toolchain-15.2.Rel1-x86_64-arm-none-eabi/bin:$PATH"
+```
+
+### Alternative: Package Manager
+
+If the latest version is not required, you can install via apt:
 
 ```bash
 sudo apt update
@@ -27,20 +44,20 @@ sudo apt install gcc-arm-none-eabi gdb-multiarch binutils-arm-none-eabi
 
 ```bash
 arm-none-eabi-gcc --version
-# Expected: arm-none-eabi-gcc (15:12.3.rel1-1) 12.3.0 or similar
+# Expected: arm-none-eabi-gcc (15.2.Rel1) 15.2.0 or similar
 
 arm-none-eabi-gdb --version
-# Expected: GNU gdb (GDB) 13.x or similar
+# Expected: GNU gdb (GDB) 16.x or similar
 
 arm-none-eabi-objdump --version
-# Expected: GNU objdump (GNU Binutils) 2.x
+# Expected: GNU objdump (GNU Binutils) 2.45 or similar
 ```
 
 ### Verify GDB Multiarch
 
 ```bash
 gdb-multiarch --version
-# Expected: GNU gdb (GDB) 13.x or similar
+# Expected: GNU gdb (GDB) 16.x or similar (includes Python 3 support)
 ```
 
 > **Tip:** If `gdb-multiarch` is not available, use `arm-none-eabi-gdb` instead. Both work for Cortex-M debugging.
@@ -60,10 +77,10 @@ source "$HOME/.cargo/env"
 
 # Verify
 rustc --version
-# Expected: rustc 1.75.0 or newer
+# Expected: rustc 1.95.0 or newer
 
 cargo --version
-# Expected: cargo 1.75.0 or newer
+# Expected: cargo 1.95.0 or newer
 ```
 
 ### Install Embedded Targets
@@ -119,70 +136,50 @@ rustup component add llvm-tools-preview
 
 ## Ada Toolchain
 
-Ada for embedded uses GNAT ARM/ELF and the Alire package manager.
+Ada for embedded uses the GNAT compiler and the **Alire** package manager. Alire handles both the GNAT toolchain (including ARM cross-compiler) and gprbuild automatically.
 
-### GNAT ARM/ELF Installation
+### Install Alire
 
-```bash
-# Download GNAT Community Edition for ARM
-# Visit: https://www.adacore.com/download
-# Select: GNAT Studio / GNAT ARM-ELF
-
-# Or install via package manager (community builds):
-sudo apt install gnat gprbuild
-```
-
-### GNAT ARM-ELF (Recommended for Cross-Compilation)
+Alire is Ada's package manager and handles GNAT toolchain installation automatically.
 
 ```bash
-# Download from AdaCore
-wget https://github.com/AdaCore/gnat-community/releases/download/2023/2023/gnat-arm-elf-2023-x86_64-linux-bin
-chmod +x gnat-arm-elf-2023-x86_64-linux-bin
-sudo ./gnat-arm-elf-2023-x86_64-linux-bin
+# Download the latest Alire release
+wget https://github.com/alire-project/alire/releases/download/v2.1.0/alr-2.1.0-bin-x86_64-linux.tar.gz
+tar -xzf alr-2.1.0-bin-x86_64-linux.tar.gz
+sudo mv alr /usr/local/bin/
 
-# Add to PATH (add to ~/.bashrc or ~/.zshrc for persistence)
-export PATH="/opt/GNAT/2023-arm-elf/bin:$PATH"
+# Verify
+alr version
+# Expected: 2.1.x or newer
 ```
 
-### Verify GNAT
+### Install ARM Cross-Compiler via Alire
+
+```bash
+# First time: select ARM toolchain
+alr toolchain --select
+# Choose: gnat_arm_elf (latest version)
+
+# Verify installation
+alr toolchain
+# Should show gnat_arm_elf as installed
+```
+
+### Verify GNAT Tools
 
 ```bash
 arm-eabi-gcc --version
-# Expected: gcc (GCC) 13.x or similar (GNAT ARM-ELF)
+# Expected: gcc (GCC) 14.x or newer (GNAT)
 
 gprbuild --version
-# Expected: GPRBUILD Pro x.x.x or GPRBUILD Community
+# Expected: GPRBUILD x.x.x
 ```
 
-### Alire Package Manager
+> **Tip:** Alire automatically manages dependencies between GNAT and gprbuild. Do not install gnat or gprbuild via apt — let Alire handle it.
 
-Alire is Ada's equivalent of Cargo — it manages projects, dependencies, and toolchains.
-
-```bash
-# Install Alire via bootstrap script
-wget https://github.com/alire-project/alire/releases/download/v2.0.0/alr-2.0.0-bin-x86_64-linux.tar.gz
-tar -xzf alr-2.0.0-bin-x86_64-linux.tar.gz
-sudo mv alr /usr/local/bin/
-alr version
-# Expected: 2.0.0 or newer
-
-# Configure Alire for ARM cross-compilation
-alr toolchain --select
-# Select: gnat_arm_elf when prompted
-```
-
-### Verify Alire
-
-```bash
-alr version
-alr toolchain
-# Should show gnat_arm_elf as selected toolchain
-```
-
-> **Note:** If `alr toolchain --select` does not offer `gnat_arm_elf`, install it manually:
->
+> **Note:** If you encounter issues with cross-compilers, you can force a specific version:
 > ```bash
-> alr get gnat_arm_elf
+> alr search --full --external-detect gnat_arm_elf
 > alr toolchain --select
 > ```
 
@@ -196,18 +193,19 @@ Zig ships as a single self-contained binary with no external dependencies.
 
 ```bash
 # Download latest Zig release
-wget https://ziglang.org/download/0.13.0/zig-linux-x86_64-0.13.0.tar.xz
+# Visit https://ziglang.org/download/ for current versions
+wget https://ziglang.org/download/0.16.0/zig-linux-x86_64-0.16.0.tar.xz
 
 # Extract
-tar -xf zig-linux-x86_64-0.13.0.tar.xz
+tar -xf zig-linux-x86_64-0.16.0.tar.xz
 
 # Move to /opt and create symlink
-sudo mv zig-linux-x86_64-0.13.0 /opt/zig
+sudo mv zig-linux-x86_64-0.16.0 /opt/zig
 sudo ln -s /opt/zig/zig /usr/local/bin/zig
 
 # Verify
 zig version
-# Expected: 0.13.0 or newer
+# Expected: 0.16.0 or newer
 ```
 
 ### Verify Cross-Compilation Targets
