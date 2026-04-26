@@ -131,6 +131,7 @@ led-blinker-c/
 
 ```ld
 /* linker.ld — STM32F405 memory layout */
+ENTRY(Reset_Handler)
 
 MEMORY
 {
@@ -303,7 +304,7 @@ AS      = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
 SIZE    = arm-none-eabi-size
 
-CFLAGS  = -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -Wall -Wextra -ffreestanding -nostdlib
+CFLAGS  = -g -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -Wall -Wextra -ffreestanding -nostdlib
 ASFLAGS = -mcpu=cortex-m4 -mthumb
 
 TARGET  = led-blinker
@@ -338,7 +339,7 @@ clean:
 
 ```bash
 arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -Wall -Wextra \
-  -ffreestanding -nostdlib -T linker.ld -o led-blinker.elf main.c startup.s
+  -g -ffreestanding -nostdlib -T linker.ld -o led-blinker.elf main.c startup.s
 arm-none-eabi-objcopy -O binary led-blinker.elf led-blinker.bin
 ```
 
@@ -926,6 +927,75 @@ arm-none-eabi-gdb led-blinker.elf
 ```
 
 > **Tip:** In QEMU, you can also use the `info registers` command and inspect `GPIOA_ODR` to see the pin state change. Add `-d guest_errors,int` to QEMU for interrupt trace output.
+
+## Running in Renode
+
+[Renode](https://renode.io/) is an open-source emulation framework that provides faster execution and better debugging capabilities than QEMU for many ARM platforms. It supports the NUCLEO-F446RE board out of the box.
+
+### Prerequisites
+
+```bash
+# Install Renode (Ubuntu/Debian)
+sudo apt install renode
+
+# Or via pip
+pip3 install renode
+```
+
+### Running
+
+The C implementation includes a Makefile target for running in Renode:
+
+```bash
+cd code/01-led-blinker/c
+make renode
+```
+This launches Renode with the NUCLEO-F446RE platform and loads the compiled binary. TheRenode console will appear where you can interact with the emulated hardware.
+
+After starting Renode:
+
+```
+(Nucleo-F446RE) logLevel -1 UserLED
+```
+
+You should see messages like:
+```
+[NOISY] UserLED: LED state changed to True
+[NOISY] UserLED: LED state changed to False
+```
+
+### GDB Debugging with Renode
+
+Renode also provides a GDB server for debugging:
+
+```bash
+# Terminal 1: Start Renode with GDB stub enabled
+renode -e '$$bin=@led-blinker.elf; $$repl=@../renode/nucleo-f446re.repl; include @../renode/led-blinker.resc; listen GDB 3333'
+```
+
+```bash
+# Terminal 2: Connect with GDB
+arm-none-eabi-gdb led-blinker.elf
+```
+
+```gdb
+(gdb) target remote :3333
+(gdb) break main
+(gdb) continue
+
+# Watch GPIOA_ODR toggle
+(gdb) watch *0x40020014
+(gdb) continue
+```
+
+### Renode Scripts
+
+The project includes a Renode script (`renode/led-blinker.resc`) that:
+- Creates the NUCLEO-F446RE board
+- Maps the LED to a visual indicator in Renode's monitor
+- Sets up sysbus.elfLoader to load the binary
+
+> **Tip:** In the Renode console, use `led0` to see the LED state: `led0 Toggle` or `led0 State`. Use `qemu` to access QEMU-specific commands when running in Renode's QEMU backend.
 
 ## Deliverables
 
