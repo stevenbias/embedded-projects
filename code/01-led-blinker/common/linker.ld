@@ -1,4 +1,5 @@
 /* linker.ld — STM32F405 memory layout */
+ENTRY(Reset_Handler)
 
 MEMORY
 {
@@ -48,5 +49,3 @@ SECTIONS
 
     /DISCARD/ : { *(.eh_frame*) }
 }
-
-ENTRY(Reset_Handler)

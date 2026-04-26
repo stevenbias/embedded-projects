@@ -20,7 +20,7 @@ OBJS    += $(OBJS_DIR)/startup.o
 # CPP stands for C PreProcessor
 # -I is a preprocessor flag, not a compiler flag
 CPPFLAGS := -I$(INCS_DIR)
-CFLAGS  = -g -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -Wall -Wextra -ffreestanding -nostdlib
+CFLAGS  = -g -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -Wall -Wextra -Werror -ffreestanding -nostdlib
 ASFLAGS = -mcpu=cortex-m4 -mthumb
 
 TARGET  = led-blinker
