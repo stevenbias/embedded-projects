@@ -1,0 +1,12 @@
+# led-blinker.resc — Run LED Blinker on Nucleo F446RE
+
+using sysbus
+$name?="Nucleo-F446RE"
+
+mach create $name
+machine LoadPlatformDescription $repl
+
+showAnalyzer sysbus.usart2
+sysbus LoadELF $bin
+
+start

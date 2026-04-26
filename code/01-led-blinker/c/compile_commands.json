@@ -1,0 +1,38 @@
+[
+  {
+    "arguments": [
+      "/usr/bin/arm-none-eabi-gcc",
+      "-g",
+      "-mcpu=cortex-m4",
+      "-mthumb",
+      "-mfloat-abi=hard",
+      "-mfpu=fpv4-sp-d16",
+      "-Os",
+      "-Wall",
+      "-Wextra",
+      "-ffreestanding",
+      "-Iinc",
+      "-c",
+      "-o",
+      "build/main.o",
+      "src/main.c"
+    ],
+    "directory": "/home/sbias/workspace/perso/embedded-projects/code/01-led-blinker/c",
+    "file": "/home/sbias/workspace/perso/embedded-projects/code/01-led-blinker/c/src/main.c",
+    "output": "/home/sbias/workspace/perso/embedded-projects/code/01-led-blinker/c/build/main.o"
+  },
+  {
+    "arguments": [
+      "/usr/bin/arm-none-eabi-gcc",
+      "-mcpu=cortex-m4",
+      "-mthumb",
+      "-c",
+      "-o",
+      "build/startup.o",
+      "../common/startup.s"
+    ],
+    "directory": "/home/sbias/workspace/perso/embedded-projects/code/01-led-blinker/c",
+    "file": "/home/sbias/workspace/perso/embedded-projects/code/01-led-blinker/common/startup.s",
+    "output": "/home/sbias/workspace/perso/embedded-projects/code/01-led-blinker/c/build/startup.o"
+  }
+]
