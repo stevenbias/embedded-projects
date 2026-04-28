@@ -1,6 +1,14 @@
 /* main.c — LED blinker for STM32F405 (NUCLEO-F446RE) */
 #include "main.h"
 
+static void led_init(void) {
+  RCC_AHB1ENR |= (1U << 0);
+  GPIOA_MODER &= ~(0x3U << (LED_PIN * 2));
+  GPIOA_MODER |= (0x1U << (LED_PIN * 2));
+}
+
+static void led_toggle(void) { GPIOA_ODR ^= (1U << LED_PIN); }
+
 void delay_ms(uint32_t ms) {
   uint32_t cycles = (HSI_CLOCK_HZ / 1000U) * ms; // SysTick is a 24-bit timer,
   // so we need to handle delays longer than ~16.7ms
@@ -13,12 +21,11 @@ void delay_ms(uint32_t ms) {
 }
 
 int main(void) {
-  RCC_AHB1ENR |= (1U << 0);
-  GPIOA_MODER &= ~(0x3U << (LED_PIN * 2));
-  GPIOA_MODER |= (0x1U << (LED_PIN * 2));
+
+  led_init();
 
   while (1) {
-    GPIOA_ODR ^= (1U << LED_PIN);
+    led_toggle();
     delay_ms(500);
   }
 
