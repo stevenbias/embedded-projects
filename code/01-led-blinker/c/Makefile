@@ -51,8 +51,14 @@ $(OBJS_DIR)/%.o: $(STARTUP_FILE) | $(OBJS_DIR)
 $(OBJS_DIR):
 	mkdir -p $@
 
-renode:
-	renode -e '$$bin=@$(TARGET).elf; $$repl=@$(RENODE_PLATFORM); include @$(RENODE_SCRIPT)'
+erase:
+	st-flash erase
+
+flash: $(TARGET).bin
+	st-flash write $(TARGET).bin 0x08000000
+
+renode: $(TARGET).elf
+	renode -e '$$bin=@$<; $$repl=@$(RENODE_PLATFORM); include @$(RENODE_SCRIPT)'
 
 size: $(TARGET).elf
 	$(SIZE) $<
