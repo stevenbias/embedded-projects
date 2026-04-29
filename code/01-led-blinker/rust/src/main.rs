@@ -27,23 +27,14 @@ extern "C" {
 
 #[no_mangle]
 pub unsafe extern "C" fn Reset() -> ! {
-    let mut ps = &mut _sbss as *mut u32;
-    let pe = &mut _ebss as *mut u32;
-    while ps < pe {
-        ps.write_volatile(0);
-        ps = ps.add(1);
-    }
-    let ds = &mut _sdata as *mut u32;
-    let de = &mut _edata as *mut u32;
-    let ss = &_sidata as *const u32;
-    let mut i = 0;
-    while ds.add(i) < de {
-        ds.add(i).write_volatile(ss.add(i).read_volatile());
-        i += 1;
-    }
     main();
     loop {}
 }
+
+// The reset vector, a pointer into the reset handler
+#[unsafe(link_section = ".vector_table.reset_vector")]
+#[unsafe(no_mangle)]
+pub static RESET_VECTOR: unsafe extern "C" fn() -> ! = Reset;
 
 #[no_mangle]
 pub fn main() {
