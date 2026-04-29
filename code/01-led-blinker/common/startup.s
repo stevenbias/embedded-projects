@@ -12,7 +12,6 @@
     .extern _bss_end
 
     .global Reset_Handler
-    .global Default_Handler
 
     .section .text.Reset_Handler
     .type Reset_Handler, %function
@@ -45,16 +44,3 @@ zero_loop:
     /* Call main() */
 call_main:
     bl   main
-
-    /* If main returns, hang */
-hang:
-    b    hang
-
-    .size Reset_Handler, . - Reset_Handler
-
-/* Catch-all handler for unused exceptions */
-    .section .text.Default_Handler
-    .type Default_Handler, %function
-Default_Handler:
-    b    .
-    .size Default_Handler, . - Default_Handler
