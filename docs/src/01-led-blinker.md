@@ -10,6 +10,8 @@ project: 1
 
 The LED blinker is the "Hello, World" of embedded development — but on bare metal, there is no standard library, no operating system, and no `main` function that just works. Everything from the moment the processor comes out of reset is your responsibility.
 
+> **Resource:** For complementary bare-metal programming exercises (French), see the [4SE03 TP site](https://4se03.telecom-paris.fr/tp).
+
 This project teaches you the foundational mechanics of bare-metal programming that apply to every embedded system you will ever write:
 
 - How the processor boots and finds your code
@@ -1037,6 +1039,9 @@ You now understand the boot process, memory layout, and register access for bare
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: Programmer's Model (MSP, vector table), Ch. 4: Memory Model
 - [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception entry and return, vector table structure
+- [4SE03 ARM Architecture (PDF)](https://4se03.telecom-paris.fr/supports/architecture_se.pdf) — French overview
+- [4SE03 ARM Assembly Guide](https://4se03.telecom-paris.fr/supports/asm-arm/) — French assembly tutorial
+- [4SE03 Bare-Metal TP](https://4se03.telecom-paris.fr/tp) — Practical exercises (French)
 
 ### Tools & Emulation
 - [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html)

@@ -457,3 +457,5 @@ With all toolchains installed and verified, proceed to:
 - [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — netduinoplus2 machine, supported peripherals
 - [Renode Documentation](https://docs.renode.io/) — Multi-node simulation, bus analyzers, peripheral models
 - [ARM EABI Specification (IHI 0045)](https://github.com/ARM-software/abi-aa/releases) — Procedure call standard, stack alignment, calling conventions
+- [GNU make et Makefiles (4SE03)](https://4se03.telecom-paris.fr/supports/makefiles.pdf) — French PDF tutorial
+- [Git Memo (4SE03)](https://4se03.telecom-paris.fr/memento/memento-git.html) — Quick reference (French)

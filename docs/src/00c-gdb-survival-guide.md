@@ -622,6 +622,7 @@ With GDB skills in hand, you're ready to debug any project in this course:
 - [GDB User Manual](https://sourceware.org/gdb/current/onlinedocs/gdb.html) — Complete reference for all GDB features
 - [GDB Embedded Processors](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Embedded-Processors.html) — Remote debugging, target-specific commands
 - [GDB Python API](https://sourceware.org/gdb/current/onlinedocs/gdb.html/Python-API.html) — Scripting GDB with Python
+- [GDB Survival Memo (4SE03)](https://4se03.telecom-paris.fr/memento/memento-gdb.html) — Quick reference (French)
 
 ### ARM Cortex-M Debugging
 - [ARM Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — NVIC, DWT, fault registers
