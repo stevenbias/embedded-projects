@@ -6,6 +6,13 @@ $name?="Nucleo-F446RE"
 mach create $name
 machine LoadPlatformDescription $repl
 
+macro reset
+"""
+    sysbus LoadELF $bin
+    start
+    log "HW reset button emulated: system-wide reset (CPU + peripherals) triggered"
+"""
+
 showAnalyzer sysbus.usart2
 sysbus LoadELF $bin
 
