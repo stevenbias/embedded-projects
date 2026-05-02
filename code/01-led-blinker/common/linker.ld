@@ -16,7 +16,7 @@ SECTIONS
     .vector_table :
     {
         LONG(_stack_top)          /* Initial MSP */
-        LONG(Reset_Handler)       /* Reset handler address */
+        LONG(Reset_Handler | 1)   /* Reset handler address (LSB=1 for Thumb, per ARMv7-M §2.3.4)*/
     } > FLASH
 
     .text :

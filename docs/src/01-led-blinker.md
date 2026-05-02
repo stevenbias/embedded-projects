@@ -64,6 +64,10 @@ Index 0: Initial MSP
 Index 1: Reset Handler
 ```
 
+> **Important — Cortex-M Thumb State:** All exception handler addresses in the vector table must have bit 0 (LSB) set to 1. This tells the processor the handler uses Thumb instructions. Cortex-M4 only supports Thumb; if LSB=0, the processor faults immediately (ARMv7-M Architecture Reference Manual DDI 0403, §2.3.4).
+>
+> The linker script achieves this with `| 1` on the handler address. Note: `LONG(Reset_Handler)` alone does NOT set LSB — the assembler/compiler sets it automatically for symbols declared with `.thumb_func` or `.type ..., %function`, but the linker script must do it explicitly for vector table entries.
+
 ### Linker Script
 
 The linker script tells the linker where to place each section in the target's memory map. A minimal script for STM32F405 defines:
@@ -148,8 +152,8 @@ SECTIONS
     .vector_table :
     {
         LONG(_stack_top)          /* Initial MSP */
-        LONG(Reset_Handler)       /* Reset handler address */
-    } > FLASH
+        LONG(Reset_Handler | 1)   /* Reset handler (LSB=1 for Thumb, per ARMv7-M §2.3.4) */
+     } > FLASH
 
     .text :
     {
