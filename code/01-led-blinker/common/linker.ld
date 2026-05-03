@@ -12,40 +12,52 @@ _stack_top = ORIGIN(RAM) + LENGTH(RAM);
 
 SECTIONS
 {
-    /* Vector table must be at the very start of flash */
-    .vector_table :
+
+    /* Vector table — defined in startup.s */
+    .isr_vector : ALIGN(4)
     {
-        LONG(_stack_top)          /* Initial MSP */
-        LONG(Reset_Handler | 1)   /* Reset handler address (LSB=1 for Thumb, per ARMv7-M §2.3.4)*/
+        _svtor = .;
+        KEEP(*(.isr_vector))
+        . = ALIGN(4);
+        _evtor = .;
     } > FLASH
 
-    .text :
+    .text : ALIGN(4)
     {
+        . = _evtor; /* Place .text after the vector table */
         *(.text*)
+        . = ALIGN(4);
     } > FLASH
 
-    .rodata :
+    .rodata : ALIGN(4)
     {
         *(.rodata*)
+        . = ALIGN(4);
     } > FLASH
 
     /* .data section — lives in RAM, initialized from flash */
-    _data_start = .;
-    .data :
+    .data : ALIGN(4)
     {
+        _sdata = .;
         *(.data*)
+        . = ALIGN(4);
+        _edata = .;
     } > RAM AT > FLASH
-    _data_end = .;
-    _data_loadaddr = LOADADDR(.data);
 
     /* .bss section — zeroed at startup */
-    .bss :
+    .bss : ALIGN(4)
     {
-        *(.bss*)
-        *(COMMON)
+        _sbss = .;
+        *(.bss*) *(COMMON)
+        . = ALIGN(4);
+        _ebss = .;
     } > RAM
-    _bss_start = .;
-    _bss_end = .;
-
-    /DISCARD/ : { *(.eh_frame*) }
 }
+
+/* Load addresses for copying from flash to RAM at startup */
+_lma_sdata = LOADADDR(.data);
+_lma_edata = _lma_sdata + SIZEOF(.data);
+_lma_stext = LOADADDR(.text);
+_lma_etext = _lma_stext + SIZEOF(.text);
+_lma_svtor = LOADADDR(.isr_vector);
+_lma_evtor = _lma_svtor + SIZEOF(.isr_vector);

@@ -11,11 +11,13 @@ INCS_DIR = inc
 OBJS_DIR = build
 
 LINKER_SCRIPT = ../common/linker.ld
-STARTUP_FILE = ../common/startup.s
+STARTUP_FILE = ../common/crt0.s
+# STARTUP_FILE = ../common/startup.s
 
 SRCS    = $(wildcard $(SRCS_DIR)/*.c)
 OBJS    = $(SRCS:$(SRCS_DIR)/%.c=$(OBJS_DIR)/%.o)
-OBJS    += $(OBJS_DIR)/startup.o
+OBJS    += $(OBJS_DIR)/crt0.o
+# OBJS    += $(OBJS_DIR)/startup.o
 
 # CPP stands for C PreProcessor
 # -I is a preprocessor flag, not a compiler flag

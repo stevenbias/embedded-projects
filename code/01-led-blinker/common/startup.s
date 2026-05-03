@@ -5,22 +5,28 @@
     .thumb
 
 /* External symbols defined by the linker */
-    .extern _data_start
-    .extern _data_end
-    .extern _data_loadaddr
-    .extern _bss_start
-    .extern _bss_end
+    .extern _sdata
+    .extern _edata
+    .extern _lma_sdata
+    .extern _sbss
+    .extern _ebss
+    .extern _stack_top
 
     .global Reset_Handler
     .global Default_Handler
 
-    .section .text.Reset_Handler
-    .type Reset_Handler, %function
+/* Vector table — defined here so assembler sets Thumb bit on Reset_Handler */
+    .section .isr_vector, "a", %progbits
+    .word _stack_top
+    .word Reset_Handler
+
+    .section .text.Reset_Handler, "ax", %progbits
+    .thumb_func
 Reset_Handler:
     /* Copy .data from flash to RAM */
-    ldr  r0, =_data_start
-    ldr  r1, =_data_end
-    ldr  r2, =_data_loadaddr
+    ldr  r0, =_sdata
+    ldr  r1, =_edata
+    ldr  r2, =_lma_sdata
     movs r3, #0
 copy_data:
     cmp  r0, r1
@@ -32,8 +38,8 @@ copy_data:
 
     /* Zero .bss */
 zero_bss:
-    ldr  r0, =_bss_start
-    ldr  r1, =_bss_end
+    ldr  r0, =_sbss
+    ldr  r1, =_ebss
     movs r2, #0
 zero_loop:
     cmp  r0, r1
@@ -53,7 +59,7 @@ hang:
     .size Reset_Handler, . - Reset_Handler
 
 /* Catch-all handler for unused exceptions */
-    .section .text.Default_Handler
+    .section .text.Default_Handler, "ax", %progbits
     .type Default_Handler, %function
 Default_Handler:
     b    .
