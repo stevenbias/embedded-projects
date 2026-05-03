@@ -218,6 +218,7 @@ See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for complete installat
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Processor architecture, FPU, NVIC, SysTick
 - [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Exception model, memory ordering, instruction set
 - [4SE03/4SE07 Course Site](https://4se03.telecom-paris.fr/) — ARM architecture, assembly, bare-metal TP, toolchain docs (French)
+- [Wasil Zafar ARM Assembly Part 14](https://www.wasilzafar.com/pages/series/arm-assembly/arm-assembly-14-cortex-m-embedded.html) — Cortex-M assembly, crt0, linker scripts, bare-metal (2026)
 
 ### Tools & Emulation
 - [QEMU ARM Documentation](https://www.qemu.org/docs/master/system/target-arm.html) — qemu-system-arm usage, GDB stub, semihosting

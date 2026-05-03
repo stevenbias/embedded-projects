@@ -1043,5 +1043,18 @@ You now understand the boot process, memory layout, and register access for bare
 - [4SE03 ARM Assembly Guide](https://4se03.telecom-paris.fr/supports/asm-arm/) — French assembly tutorial
 - [4SE03 Bare-Metal TP](https://4se03.telecom-paris.fr/tp) — Practical exercises (French)
 
+### Startup Code & crt0.s References
+- [ARM Community: Writing your own startup code for Cortex-M](https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/writing-your-own-startup-code-for-cortex-m) — Tutorial for Cortex-M startup assembly
+- [ARM Community: Decoding the Startup file for Arm Cortex-M4](https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/decoding-the-startup-file-for-arm-cortex-m4) — Detailed startup file walkthrough
+- [Rowley crt0.s Documentation](https://www.rowleydownload.co.uk/arm/documentation/arm_crt0.htm) — crt0.s structure, sections, initialization steps
+- [Embedded Artistry: Exploring Startup Implementations (Newlib ARM)](https://embeddedartistry.com/blog/2019/04/17/exploring-startup-implementations-newlib-arm/) — Newlib ARM startup analysis
+- [Wasil Zafar ARM Assembly Part 14](https://www.wasilzafar.com/pages/series/arm-assembly/arm-assembly-14-cortex-m-embedded.html) — Cortex-M assembly & bare-metal, crt0, linker scripts
+
+### Linker Script References
+- [GNU LD MEMORY Command](https://sourceware.org/binutils/docs/ld/MEMORY.html) — Linker script memory region definition
+- [GNU LD SECTIONS Command](https://sourceware.org/binutils/docs/ld/SECTIONS.html) — Output section control
+- [Embedds: Programming STM32 with GNU Tools (Linker Script)](https://embedds.com/programming-stm32-discovery-using-gnu-tools-linker-script/) — Practical linker script tutorial
+- [Understanding the Linker Script (Stack Overflow)](https://stackoverflow.com/questions/40532180/understanding-the-linkerscript-for-an-arm-cortex-m-microcontroller) — Detailed walkthrough with comments
+
 ### Tools & Emulation
 - [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html)

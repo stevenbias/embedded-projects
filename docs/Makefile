@@ -22,11 +22,18 @@ PANDOC_FLAGS := --standalone --toc --toc-depth=3 \
                 --highlight-style=tango \
                 --metadata-file=metadata.yml
 
+# Sidebar (auto-generated from SRCS)
+SIDEBAR_FILE = $(OUTPUT_DIR)/sidebar.html
+
+$(SIDEBAR_FILE): $(SRCS) | $(OUTPUT_DIR)
+	python3 $(SCRIPTS_DIR)/gen-sidebar.py $(SRCS) > $@
+
 # Source files (explicitly ordered)
 SRCS := $(SRC_DIR)/00-index.md \
         $(SRC_DIR)/00a-prerequisites.md \
         $(SRC_DIR)/00b-emulator-setup.md \
         $(SRC_DIR)/00c-gdb-survival-guide.md \
+        $(SRC_DIR)/00d-linker-crt0-guide.md \
         $(SRC_DIR)/01-led-blinker.md \
         $(SRC_DIR)/02-uart-echo.md \
         $(SRC_DIR)/03-button-interrupts.md \
@@ -74,16 +81,18 @@ $(COMBINED_HTML): $(COMBINED)
 # ---- HTML ----
 html: $(HTML_OUT)
 
-$(HTML_OUT): $(COMBINED_HTML) $(OUTPUT_DIR)/assets/search-index.json | $(OUTPUT_DIR)
+$(HTML_OUT): $(COMBINED_HTML) $(OUTPUT_DIR)/assets/search-index.json $(SIDEBAR_FILE) | $(OUTPUT_DIR)
 	@echo "==> Building HTML..."
 	@cp -r $(ASSETS_DIR) $(OUTPUT_DIR)/
+	sed -e '/%%SIDEBAR%%/r $(SIDEBAR_FILE)' -e '/%%SIDEBAR%%/d' $(HTML_TEMPLATE) > $(OUTPUT_DIR)/html-template-tmp.html
 	$(PANDOC) $(PANDOC_FLAGS) \
 		--to html5 \
-		--template=$(HTML_TEMPLATE) \
+		--template=$(OUTPUT_DIR)/html-template-tmp.html \
 		--css=assets/css/style.css \
 		--css=assets/css/dark.css \
 		--metadata title="Embedded Mastery: C, Ada, Rust & Zig" \
 		-o $@ $<
+	@rm -f $(OUTPUT_DIR)/html-template-tmp.html
 	@echo "    -> $@"
 
 # ---- Individual Pages ----
@@ -107,9 +116,10 @@ $(OUTPUT_DIR)/.pages-built: $(SRCS) $(OUTPUT_DIR)/assets/css/style.css $(OUTPUT_
 			next=""; \
 		fi; \
 		sed 's/\.md)/\.html)/g; s/\.md"/\.html"/g' $$src > $(OUTPUT_DIR)/$$name.tmp.md; \
+		sed -e '/%%SIDEBAR%%/r $(SIDEBAR_FILE)' -e '/%%SIDEBAR%%/d' templates/page.html > $(OUTPUT_DIR)/page-template-tmp.html; \
 		$(PANDOC) $(PANDOC_FLAGS) \
 			--to html5 \
-			--template=templates/page.html \
+			--template=$(OUTPUT_DIR)/page-template-tmp.html \
 			--css=assets/css/style.css \
 			--css=assets/css/dark.css \
 			--metadata prev="$$prev" \
