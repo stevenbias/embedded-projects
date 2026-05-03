@@ -44,11 +44,17 @@ Here are the critical sections you'll encounter in bare-metal Cortex-M developme
 - **Content example:** The first entry is the initial Main Stack Pointer (MSP) value; the second is the address of `Reset_Handler`; subsequent entries are NMI, HardFault, and peripheral interrupt handlers.
 - **Linker script:** Placed in Flash with `KEEP()` to prevent garbage collection:
   ```ld
-  .isr_vector : {
-      . = ALIGN(4);
-      KEEP(*(.isr_vector))
-      . = ALIGN(4);
-  } > FLASH
+.isr_vector : ALIGN(4) {
+    KEEP(*(.isr_vector))
+    . = ALIGN(4);
+} > FLASH
+
+.text : ALIGN(4) {
+    *(.text*)
+    *(.rodata*)
+    . = ALIGN(4);
+    _etext = .;        /* End of .text in Flash */
+} > FLASH
   ```
 
 #### `.text` (Executable Code)
@@ -60,13 +66,12 @@ Here are the critical sections you'll encounter in bare-metal Cortex-M developme
   ```
 - **Linker script:** Placed in Flash:
   ```ld
-  .text : {
-      . = ALIGN(4);
-      *(.text*)       /* All code sections */
-      *(.rodata*)     /* Often included here for locality */
-      . = ALIGN(4);
-      _etext = .;     /* Symbol for end of .text in Flash */
-  } > FLASH
+.text : ALIGN(4) {
+    *(.text*)       /* All code sections */
+    *(.rodata*)     /* Often included here for locality */
+    . = ALIGN(4);
+    _etext = .;     /* Symbol for end of .text in Flash */
+} > FLASH
   ```
 
 #### `.rodata` (Read-Only Data)
@@ -100,19 +105,85 @@ Here are the critical sections you'll encounter in bare-metal Cortex-M developme
   ```
 - **Linker script:** Marked `(NOLOAD)` to exclude from the binary, placed in RAM:
   ```ld
-  .bss (NOLOAD) : {
-      . = ALIGN(4);
-      _sbss = .;
-      *(.bss*)
-      *(COMMON)
-      . = ALIGN(4);
-      _ebss = .;
-  } > RAM
+.bss (NOLOAD) : ALIGN(4) {
+    _sbss = .;
+    *(.bss*)
+    *(COMMON)
+    . = ALIGN(4);
+    _ebss = .;
+} > RAM
   ```
 - **crt0.s action:** Fill the entire section with zeros before calling `main()`.
 
 ### Cross-Reference
+
 The critical LMA vs VMA concept for `.data` is explained in detail in the [LMA vs VMA (Critical Concept)](#lma-vs-vma-critical-concept) section later in this guide.
+
+### ELF Section Flags (Critical for Thumb Functions)
+
+When defining custom sections in assembly with `.section`, you must specify flags and types. These flags tell the assembler how to categorize the section in the ELF binary, which affects whether the linker and processor can correctly execute code and access data.
+
+#### Section Flag Syntax
+
+```armasm
+.section name, "flags", %type
+```
+
+| Flag | Meaning | Use Case |
+|------|---------|----------|
+| `"a"` | Allocatable — section occupies memory | All sections (required) |
+| `"x"` | Executable — contains runnable code | Functions |
+| `"w"` | Writable — can be modified at runtime | Variables |
+
+The common flags are:
+- `"aw"` = Allocatable + Writable (`.data`, `.bss`)
+- `"ax"` = Allocatable + Executable (`.text`)
+- `"a"` = Allocatable only (vector table)
+
+#### Section Types
+
+| Type | Meaning | Use Case |
+|------|---------|----------|
+| `%progbits` | Contains actual data/code | Vector table, code sections |
+| `%nobits` | No binary storage (zero-filled) | `.bss` |
+
+#### Why `"ax"` Matters for Thumb Functions
+
+On Cortex-M, all code runs in Thumb state, where function addresses must have bit 0 set (the LSB, or Least Significant Bit). For example, `Reset_Handler` at address `0x08000068` is stored as `0x08000069` in the vector table.
+
+The assembler only applies Thumb function attributes to symbols defined in **executable** sections. If you omit the `"x"` flag, the assembler cannot mark the symbol correctly, and `.thumb_func` has no effect:
+
+```armasm
+/* INCORRECT — no "x" flag means no Thumb attribute */
+.section .text.Reset_Handler
+
+/* CORRECT — "x" flag enables assemblerThumb function handling */
+.section .text.Reset_Handler, "ax", %progbits
+```
+
+This is why `.text.*` sections must use `"ax"` flags.
+
+#### Vector Table Sections
+
+The vector table uses `"a"` only because it contains **data** (addresses), not executable instructions:
+
+```armasm
+.section .isr_vector, "a", %progbits
+    .word _stack_top
+    .word Reset_Handler
+```
+
+The executable flag is not needed here because the CPU doesn't "run" the vector table — it reads 32-bit values from it and branches to those addresses.
+
+#### Recommended Flags by Section Type
+
+| Section | Flags | Type | Reason |
+|---------|-------|------|--------|
+| `.isr_vector` | `"a"` | `%progbits` | Vector table (addresses) |
+| `.text.*` | `"ax"` | `%progbits` | Executable code |
+| `.rodata` | `"a"` | `%progbits` | Read-only constants |
+| `.data` | `"aw"` | `%progbits` | Initialized variables in RAM |
+| `.bss` | `"aw"` | `%nobits` | Uninitialized variables |
 
 ---
 
@@ -197,20 +268,20 @@ The `AT > FLASH` sets the LMA to Flash, while `> RAM` sets the VMA to RAM.
 ARM AAPCS requires 8-byte stack alignment; sections should be 4-byte aligned:
 
 ```ld
-.text : {
-    . = ALIGN(4);
+.text : ALIGN(4) {
     *(.text*)
     *(.rodata*)
     . = ALIGN(4);
 } > FLASH
 ```
 
+**Why two ALIGN calls?** The `: ALIGN(4)` on the output section (or equivalently `. = ALIGN(4)` before the content) ensures the section *starts* at a 4-byte aligned address — required for ARM vector tables and AAPCS compliance. The second `. = ALIGN(4)` *inside* the section (after the content) ensures the location counter is aligned for the *next* section, so whatever follows (e.g., `.text`) also starts on a 4-byte boundary. This defensive pattern guarantees proper alignment at both section boundaries.
+
 #### 2. Use `KEEP()` for Critical Sections
 Without `KEEP()`, the linker might remove the vector table as "unused" when garbage collection (`--gc-sections`) is enabled:
 
 ```ld
-.isr_vector : {
-    . = ALIGN(4);
+.isr_vector : ALIGN(4) {
     KEEP(*(.isr_vector))   /* Don't garbage-collect the vector table */
     . = ALIGN(4);
 } > FLASH
@@ -220,8 +291,7 @@ Without `KEEP()`, the linker might remove the vector table as "unused" when garb
 The `.bss` section is zeroed at runtime and doesn't need to occupy space in the binary:
 
 ```ld
-.bss (NOLOAD) : {
-    . = ALIGN(4);
+.bss (NOLOAD) : ALIGN(4) {
     _sbss = .;
     *(.bss*)
     *(COMMON)
@@ -253,7 +323,7 @@ Remove sections that aren't needed in bare-metal (C++ exception frames, debug in
 
 The startup code needs to know:
 - Where `.data` lives in RAM (`_sdata`, `_edata`)
-- Where `.data` initial values are in Flash (`_etext`)
+- Where `.data` initial values are in Flash (`_sidata`)
 - Where `.bss` starts/ends (`_sbss`, `_ebss`)
 - Where the stack top is (`_stack_top`)
 
@@ -261,30 +331,29 @@ These are defined in the linker script:
 
 ```ld
 /* In SECTIONS: */
-.isr_vector : {
-    . = ALIGN(4);
+.isr_vector : ALIGN(4) {
     KEEP(*(.isr_vector))
     . = ALIGN(4);
 } > FLASH
 
-.text : {
-    . = ALIGN(4);
+.text : ALIGN(4) {
     *(.text*)
     *(.rodata*)
     . = ALIGN(4);
-    _etext = .;        /* End of .text in Flash (for .data copy source) */
+    _etext = .;        /* End of .text in Flash */
 } > FLASH
 
-.data : {
-    . = ALIGN(4);
+.data : ALIGN(4) {
     _sdata = .;        /* VMA start (RAM) */
     *(.data*)
     . = ALIGN(4);
     _edata = .;        /* VMA end (RAM) */
 } > RAM AT > FLASH
 
-.bss (NOLOAD) : {
-    . = ALIGN(4);
+/* .data LMA in Flash — used by crt0.s to copy initial values */
+_sidata = LOADADDR(.data);
+
+.bss (NOLOAD) : ALIGN(4) {
     _sbss = .;
     *(.bss*)
     *(COMMON)
@@ -320,47 +389,43 @@ _stack_top = ORIGIN(RAM) + LENGTH(RAM);
 
 SECTIONS
 {
-    /* Vector table — must be at start of Flash */
-    .isr_vector : {
-        . = ALIGN(4);
-        KEEP(*(.isr_vector))
-        . = ALIGN(4);
+/* Vector table — must be at start of Flash */
+.isr_vector : ALIGN(4) {
+    KEEP(*(.isr_vector))
+    . = ALIGN(4);
+} > FLASH
+
+/* Code and read-only data */
+.text : ALIGN(4) {
+    *(.text*)           /* Program code */
+    *(.rodata*)         /* Read-only data */
+    *(.glue_7)          /* ARM/Thumb interworking */
+    *(.glue_7t)
+    KEEP(*(.init))
+    KEEP(*(.fini))
+    . = ALIGN(4);
+        _etext = .;         /* End of .text in Flash */
     } > FLASH
 
-    /* Code and read-only data */
-    .text : {
-        . = ALIGN(4);
-        *(.text*)           /* Program code */
-        *(.rodata*)         /* Read-only data */
-        *(.glue_7)          /* ARM/Thumb interworking */
-        *(.glue_7t)
-        KEEP(*(.init))
-        KEEP(*(.fini))
-        . = ALIGN(4);
-        _etext = .;         /* End of .text in Flash (source for .data copy) */
-    } > FLASH
-
-    /* Initialized data — VMA in RAM, LMA in Flash */
-    .data : {
-        . = ALIGN(4);
-        _sdata = .;         /* Start of .data in RAM */
-        *(.data*)
-        . = ALIGN(4);
-        _edata = .;         /* End of .data in RAM */
-    } > RAM AT > FLASH
+/* Initialized data — VMA in RAM, LMA in Flash */
+.data : ALIGN(4) {
+    _sdata = .;         /* Start of .data in RAM */
+    *(.data*)
+    . = ALIGN(4);
+    _edata = .;         /* End of .data in RAM */
+} > RAM AT > FLASH
 
     /* Load address of .data in Flash */
     _sidata = LOADADDR(.data);
 
-    /* Zero-initialized data — NOLOAD (not stored in binary) */
-    .bss (NOLOAD) : {
-        . = ALIGN(4);
-        _sbss = .;          /* Start of .bss in RAM */
-        *(.bss*)
-        *(COMMON)
-        . = ALIGN(4);
-        _ebss = .;          /* End of .bss in RAM */
-    } > RAM
+/* Zero-initialized data — NOLOAD (not stored in binary) */
+.bss (NOLOAD) : ALIGN(4) {
+    _sbss = .;          /* Start of .bss in RAM */
+    *(.bss*)
+    *(COMMON)
+    . = ALIGN(4);
+    _ebss = .;          /* End of .bss in RAM */
+} > RAM
 
     /* Heap (optional, if using dynamic memory) */
     . = ALIGN(8);
@@ -401,147 +466,7 @@ When a Cortex-M processor resets:
 
 > **Important:** The reset handler address must have bit 0 set (LSB=1) to indicate Thumb state. Cortex-M only supports Thumb instructions. This is handled automatically by the `.thumb_func` directive.
 
-### Complete Example: Production-Ready crt0.s
-
-Here's a complete, copy-paste crt0.s that follows best practices:
-
-```armasm
-.syntax unified
-.thumb
-
-/* Vector table — placed in .isr_vector section */
-.section .isr_vector
-.align 2
-.globl __isr_vector
-__isr_vector:
-    .word _stack_top             /* Entry 0: Initial MSP */
-    .word Reset_Handler          /* Entry 1: Reset handler */
-    .word NMI_Handler            /* Entry 2: NMI */
-    .word HardFault_Handler      /* Entry 3: Hard Fault */
-    /* Add more exception handlers as needed for your MCU */
-
-/* External symbols from linker script */
-.extern _sdata
-.extern _edata
-.extern _sbss
-.extern _ebss
-.extern _sidata                   /* LMA of .data in Flash */
-
-/* Weak aliases for default handlers */
-.weak NMI_Handler
-.thumb_set NMI_Handler, Default_Handler
-
-.weak HardFault_Handler
-.thumb_set HardFault_Handler, Default_Handler
-
-/* Reset Handler — entry point after boot */
-.section .text.Reset_Handler
-.thumb_func
-.globl Reset_Handler
-.type Reset_Handler, %function
-Reset_Handler:
-    /* Optional: Call SystemInit (clock setup) if provided */
-    /* bl SystemInit */
-
-    /* Copy .data from Flash (LMA) to RAM (VMA) */
-    ldr r0, =_sdata              /* Destination: start of .data in RAM */
-    ldr r1, =_edata              /* End of .data in RAM */
-    ldr r2, =_sidata             /* Source: start of .data in Flash */
-
-    /* If _sdata == _edata, no data to copy */
-    cmp r0, r1
-    beq zero_bss
-
-copy_data:
-    ldr r3, [r2], #4            /* Load from Flash, post-increment */
-    str r3, [r0], #4            /* Store to RAM, post-increment */
-    cmp r0, r1                  /* Check if done */
-    bne copy_data
-
-zero_bss:
-    /* Zero .bss section */
-    ldr r0, =_sbss              /* Start of .bss in RAM */
-    ldr r1, =_ebss              /* End of .bss in RAM */
-    movs r2, #0                 /* Zero value */
-
-    /* If _sbss == _ebss, no bss to zero */
-    cmp r0, r1
-    beq call_main
-
-zero_loop:
-    str r2, [r0], #4            /* Store zero, post-increment */
-    cmp r0, r1                  /* Check if done */
-    bne zero_loop
-
-call_main:
-    /* Call main() */
-    bl main
-
-    /* If main() returns, hang */
-hang:
-    b hang
-
-.size Reset_Handler, . - Reset_Handler
-
-/* Default handler for unused interrupts/exceptions */
-.section .text.Default_Handler
-.thumb_func
-.globl Default_Handler
-.type Default_Handler, %function
-Default_Handler:
-    b .                         /* Infinite loop */
-.size Default_Handler, . - Default_Handler
-```
-
-### Breakdown by Section
-
-#### 1. Vector Table
-Placed in `.isr_vector` section so the linker script can position it at the start of Flash. The first entry is the initial SP, the second is the reset handler.
-
-#### 2. Symbol Declarations
-```armasm
-.extern _sdata        /* VMA start of .data (RAM) */
-.extern _edata        /* VMA end of .data (RAM) */
-.extern _sidata       /* LMA of .data (Flash) */
-.extern _sbss         /* Start of .bss (RAM) */
-.extern _ebss         /* End of .bss (RAM) */
-```
-These must match the symbols defined in the linker script exactly.
-
-#### 3. Weak Aliases for Handlers
-```armasm
-.weak NMI_Handler
-.thumb_set NMI_Handler, Default_Handler
-```
-This allows application code to override handlers; if not overridden, they default to an infinite loop.
-
-#### 4. Copy .data (LMA → VMA)
-Uses post-increment (`[r2], #4`) for efficient copying:
-```armasm
-copy_data:
-    ldr r3, [r2], #4            /* Load from Flash, post-increment */
-    str r3, [r0], #4            /* Store to RAM, post-increment */
-    cmp r0, r1
-    bne copy_data
-```
-
-#### 5. Zero .bss
-Fills `.bss` with zeros per the C standard:
-```armasm
-zero_loop:
-    str r2, [r0], #4            /* Store zero, post-increment */
-    cmp r0, r1
-    bne zero_loop
-```
-
-#### 6. Call main()
-```armasm
-bl main              /* Call main() */
-hang:
-    b hang          /* Infinite loop if main returns */
-```
-
-### Building crt0.s
+### Using the crt0.s
 
 Assemble the startup code:
 ```bash
@@ -666,37 +591,33 @@ _stack_top = ORIGIN(RAM) + LENGTH(RAM);
 
 SECTIONS
 {
-    .isr_vector : {
-        . = ALIGN(4);
-        KEEP(*(.isr_vector))
-        . = ALIGN(4);
-    } > FLASH
+.isr_vector : ALIGN(4) {
+    KEEP(*(.isr_vector))
+    . = ALIGN(4);
+} > FLASH
 
-    .text : {
-        . = ALIGN(4);
-        *(.text*)
-        *(.rodata*)
-        . = ALIGN(4);
-        _etext = .;
-    } > FLASH
+.text : ALIGN(4) {
+    *(.text*)
+    *(.rodata*)
+    . = ALIGN(4);
+    _etext = .;
+} > FLASH
 
-    _sidata = LOADADDR(.data);
-    .data : {
-        . = ALIGN(4);
-        _sdata = .;
-        *(.data*)
-        . = ALIGN(4);
-        _edata = .;
+_sidata = LOADADDR(.data);
+.data : ALIGN(4) {
+    _sdata = .;
+    *(.data*)
+    . = ALIGN(4);
+    _edata = .;
     } > RAM AT > FLASH
 
-    .bss (NOLOAD) : {
-        . = ALIGN(4);
-        _sbss = .;
-        *(.bss*)
-        *(COMMON)
-        . = ALIGN(4);
-        _ebss = .;
-    } > RAM
+.bss (NOLOAD) : ALIGN(4) {
+    _sbss = .;
+    *(.bss*)
+    *(COMMON)
+    . = ALIGN(4);
+    _ebss = .;
+} > RAM
 }
 ```
 
@@ -706,43 +627,56 @@ SECTIONS
 .syntax unified
 .thumb
 
-.section .isr_vector
-.align 2
-.word _stack_top
-.word Reset_Handler
+/* Vector table — placed in .isr_vector section */
+.section .isr_vector, "a", %progbits
+    .word _stack_top
+    .word Reset_Handler
 
-.extern _sdata, _edata, _sidata, _sbss, _ebss
+/* External symbols from linker script */
+.extern _sdata
+.extern _edata
+.extern _lma_sdata
+.extern _sbss
+.extern _ebss
 
+.global Reset_Handler
+
+/* Reset Handler — placed in .text section */
+.section .text.Reset_Handler, "ax", %progbits
 .thumb_func
-.globl Reset_Handler
 Reset_Handler:
-    /* Copy .data from Flash to RAM */
-    ldr r0, =_sdata
-    ldr r1, =_edata
-    ldr r2, =_sidata
-    b copy_check
+    /* Copy .data from Flash (LMA) to RAM (VMA) */
+    ldr r0, =_sdata              /* Destination: start of .data in RAM */
+    ldr r1, =_edata              /* End of .data in RAM */
+    ldr r2, =_lma_sdata             /* Source: start of .data in Flash */
 
-copy_loop:
-    ldr r3, [r2], #4
-    str r3, [r0], #4
-copy_check:
+    /* If _sdata == _edata, skip copy */
     cmp r0, r1
-    bne copy_loop
+    beq zero_bss
 
-    /* Zero .bss */
-    ldr r0, =_sbss
-    ldr r1, =_ebss
-    movs r2, #0
-    b zero_check
+copy_data:
+    ldr r3, [r2], #4            /* Load from Flash, post-increment */
+    str r3, [r0], #4            /* Store to RAM, post-increment */
+    cmp r0, r1                  /* Check if done */
+    bne copy_data
+
+zero_bss:
+    /* Zero .bss section */
+    ldr r0, =_sbss              /* Start of .bss in RAM */
+    ldr r1, =_ebss              /* End of .bss in RAM */
+    movs r2, #0                 /* Zero value */
 
 zero_loop:
-    str r2, [r0], #4
-zero_check:
-    cmp r0, r1
+    str r2, [r0], #4            /* Store zero, post-increment */
+    cmp r0, r1                  /* Check if done */
     bne zero_loop
 
+call_main:
     bl main
-    b .
+
+    /* If main returns, hang */
+hang:
+    b hang
 ```
 
 ---
