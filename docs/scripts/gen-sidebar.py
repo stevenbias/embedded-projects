@@ -26,9 +26,8 @@ def get_meta(filepath):
     if not title_m or not phase_m:
         return None, None
     title = title_m.group(1).strip().strip('"')
-    # Extract short title: use part before first ':' or full title
-    short = title.split(':')[0].strip()
-    return html_escape(short), int(phase_m.group(1))
+    subtitle = title.split(':', 1)[1].strip() if ':' in title else title
+    return html_escape(subtitle), int(phase_m.group(1))
 
 # Group by phase (preserving SRCS order)
 phases = defaultdict(list)

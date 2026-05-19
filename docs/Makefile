@@ -98,7 +98,7 @@ $(HTML_OUT): $(COMBINED_HTML) $(OUTPUT_DIR)/assets/search-index.json $(SIDEBAR_F
 # ---- Individual Pages ----
 pages: search-data $(OUTPUT_DIR)/.pages-built
 
-$(OUTPUT_DIR)/.pages-built: $(SRCS) $(OUTPUT_DIR)/assets/css/style.css $(OUTPUT_DIR)/assets/js/search-data.js
+$(OUTPUT_DIR)/.pages-built: $(SRCS) $(OUTPUT_DIR)/assets/css/style.css $(OUTPUT_DIR)/assets/js/search-data.js $(SIDEBAR_FILE)
 	@echo "==> Building individual HTML pages..."
 	@for i in $$(seq 0 $$(($(words $(SRCS)) - 1))); do \
 		src=$$(echo $(SRCS) | cut -d' ' -f$$((i+1))); \

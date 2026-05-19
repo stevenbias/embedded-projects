@@ -10,7 +10,7 @@ project: 14
 
 In this project, you will implement a complete motor control system with PID feedback control, fault detection, and safe state management. This is a critical embedded systems application found in robotics, industrial automation, automotive systems, and aerospace. You will implement the system in C, Rust, Ada, and Zig — each language showcasing its unique strengths for safety-critical control systems.
 
-> **Prerequisite:** This project builds on concepts from earlier phases. Familiarity with PWM generation (Project 4), timer interrupts (Project 6), and ADC sampling (Project 7) is assumed.
+> **Prerequisite:** This project builds on concepts from earlier phases. Familiarity with PWM generation (Project 6), timer interrupts (Project 3), and ADC sampling is assumed.
 
 ### What You'll Learn
 

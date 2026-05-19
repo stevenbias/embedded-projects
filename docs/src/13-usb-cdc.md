@@ -12,7 +12,7 @@ In this project, you will implement a USB Communications Device Class (CDC) Abst
 
 You will build a USB device stack that handles enumeration, responds to standard and class-specific requests, and implements bidirectional bulk transfers over the CDC-ACM profile. When connected to a host, your device will appear as `/dev/ttyACM0` (Linux) or `COMx` (Windows).
 
-> **Tip:** If you completed Project 5 (UART Communication), you already understand serial communication from the MCU side. This project adds the USB transport layer that makes your MCU appear as a serial device to a host PC.
+> **Tip:** If you completed Project 2 (UART Echo), you already understand serial communication from the MCU side. This project adds the USB transport layer that makes your MCU appear as a serial device to a host PC.
 
 ### What You'll Learn
 
