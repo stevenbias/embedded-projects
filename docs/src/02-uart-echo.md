@@ -526,7 +526,7 @@ uart-echo-ada/
 project Uart_Echo is
 
    for Target use "arm-eabi";
-   for Runtime use "ravenscar-sfp-stm32f4";
+   for Runtime use "light-stm32f4";
 
    for Source_Dirs use (".");
    for Object_Dir use "obj";

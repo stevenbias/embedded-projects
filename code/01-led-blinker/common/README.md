@@ -32,6 +32,11 @@ _stack_top = ORIGIN(RAM) + LENGTH(RAM);  // 0x20020000
   FLASH (address `0x08000000`). The first entry is the initial stack pointer
   value (`_stack_top`), and the second is the address of `Reset_Handler`.
 
+  **Exception handler addresses must have LSB=1** to indicate Thumb instruction
+  set (ARMv7-M Architecture Reference Manual DDI 0403 §2.3.4). Use
+  `LONG(Reset_Handler | 1)` in the linker script — `LONG(Reset_Handler)` alone
+  writes the raw (even) address, which causes a HardFault on reset.
+
 - `.text`: Code instructions, placed in FLASH.
 
 - `.rodata`: Read-only constants (e.g., string literals, const arrays), placed
@@ -88,7 +93,9 @@ standard for bare-metal systems without an OS.
 ## How They Work Together
 
 1. On power-on/reset, the CPU loads the stack pointer from address `0x08000000`
-   and jumps to `Reset_Handler` at address `0x08000004`.
+   and jumps to the reset handler at `0x08000004`. **The LSB of this address
+   must be 1 to indicate Thumb state** (Cortex-M4 TRM DDI 0439); if LSB=0,
+   the processor faults immediately.
 
 2. `Reset_Handler` copies `.data` from FLASH to RAM, then zeros `.bss`.
 

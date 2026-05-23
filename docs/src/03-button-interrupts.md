@@ -921,7 +921,7 @@ begin
          LED_Toggle;
       end if;
 
-      -- In a Ravenscar runtime, we can use delay_until or similar
+      -- With the Ravenscar profile (Light-Tasking runtime), we can use delay_until or similar
       -- For bare metal, just loop — the ISR does the real work
       null;
    end loop;
@@ -935,7 +935,7 @@ gprbuild -P button_interrupts.gpr -p
 arm-eabi-objcopy -O binary obj/main button-interrupts.bin
 ```
 
-> **Note:** The Ravenscar runtime automatically handles interrupt handler registration and critical sections within protected objects. The `protected` type in Ada provides built-in mutual exclusion — no manual interrupt disable/enable needed.
+> **Note:** The Light-Tasking runtime automatically handles interrupt handler registration and critical sections within protected objects. The `protected` type in Ada provides built-in mutual exclusion — no manual interrupt disable/enable needed.
 
 ## Implementation: Zig
 
@@ -1150,11 +1150,11 @@ arm-none-eabi-gdb button-interrupts.elf
 |--------------------------|--------------------------------|---------------------------------------|----------------------------------|----------------------------------|
 | **Shared state**         | `volatile` globals             | `AtomicBool` / `AtomicU32`            | Protected object                 | `std.atomic.Atomic(T)`           |
 | **Critical section**     | `__disable_irq()` / `__enable_irq()` | `Ordering::SeqCst` on atomics    | Built into protected objects     | `.SeqCst` ordering               |
-| **ISR registration**     | Named handler in vector table  | `#[exception]` attribute              | Runtime handles it (Ravenscar)   | `export fn` with matching name   |
+| **ISR registration**     | Named handler in vector table  | `#[exception]` attribute              | Runtime handles it (Light-Tasking)   | `export fn` with matching name   |
 | **Debouncing**           | Counter in SysTick handler     | Atomic counter in `SysTick` exception | Protected `Tick` procedure       | Atomic state machine enum        |
 | **Interrupt clear**      | Write 1 to `EXTI_PR`           | Same via `write_volatile`             | Same via volatile access         | Same via volatile pointer        |
 | **Pending flag**         | `volatile int`                 | `AtomicBool`                          | Protected object private field   | `Atomic(bool)`                   |
-| **Low-power wait**       | `__asm volatile ("wfi")`       | `cortex_m::asm::wfi()`                | Implicit (Ravenscar idle task)   | `asm volatile ("wfi")`           |
+| **Low-power wait**       | `__asm volatile ("wfi")`       | `cortex_m::asm::wfi()`                | Implicit (Light-Tasking idle task)   | `asm volatile ("wfi")`           |
 
 ## Next Steps
 

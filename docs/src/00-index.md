@@ -104,9 +104,9 @@ This structure reveals what each language does differently — and what stays th
 
 **Phase 5 total: 86 hours**
 
-### Grand Total: ~370 Hours (all languages)
+### Grand Total: ~362 Hours (per language)
 
-> **Note:** The 290-hour estimate is per language. Total course time across all 4 languages is approximately 1,160 hours. Most learners spread this across 6-12 months.
+> **Note:** The ~362-hour estimate is per language. Total course time across all 4 languages is approximately 1,450 hours. Most learners spread this across 6-12 months.
 
 ---
 
@@ -163,7 +163,7 @@ You do **not** need physical hardware for most of this course. We use emulation 
 | **QEMU** (`qemu-system-arm`) | Primary emulator for all projects | Excellent Cortex-M support, GDB integration, semihosting |
 | **Renode** | I2C sensors (Project 5), CAN bus (Project 9) | Peripheral simulation, bus analyzers, multi-node networks |
 
-> **Note:** Projects 5 (I2C) and 9 (CAN) benefit greatly from Renode's peripheral simulation. All other projects run fully in QEMU.
+> **Note:** Projects 4 (I2C) and 11 (CAN) benefit greatly from Renode's peripheral simulation. All other projects run fully in QEMU.
 
 See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for complete installation and configuration instructions.
 
@@ -200,6 +200,7 @@ See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for complete installat
 - [Prerequisites & Toolchain Setup](00a-prerequisites.md)
 - [Emulator Setup & Usage Guide](00b-emulator-setup.md)
 - [GDB Survival Guide](00c-gdb-survival-guide.md)
+- [Linker Scripts & crt0.s Guide](00d-linker-crt0-guide.md)
 
 ---
 
@@ -217,6 +218,8 @@ See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for complete installat
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Processor architecture, FPU, NVIC, SysTick
 - [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Exception model, memory ordering, instruction set
+- [4SE03/4SE07 Course Site](https://4se03.telecom-paris.fr/) — ARM architecture, assembly, bare-metal TP, toolchain docs (French)
+- [Wasil Zafar ARM Assembly Part 14](https://www.wasilzafar.com/pages/series/arm-assembly/arm-assembly-14-cortex-m-embedded.html) — Cortex-M assembly, crt0, linker scripts, bare-metal (2026)
 
 ### Tools & Emulation
 - [QEMU ARM Documentation](https://www.qemu.org/docs/master/system/target-arm.html) — qemu-system-arm usage, GDB stub, semihosting

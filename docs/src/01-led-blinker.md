@@ -10,6 +10,8 @@ project: 1
 
 The LED blinker is the "Hello, World" of embedded development — but on bare metal, there is no standard library, no operating system, and no `main` function that just works. Everything from the moment the processor comes out of reset is your responsibility.
 
+> **Resource:** For complementary bare-metal programming exercises (French), see the [4SE03 TP site](https://4se03.telecom-paris.fr/tp).
+
 This project teaches you the foundational mechanics of bare-metal programming that apply to every embedded system you will ever write:
 
 - How the processor boots and finds your code
@@ -63,6 +65,10 @@ The vector table is an array of function pointers at a known address. On Cortex-
 Index 0: Initial MSP
 Index 1: Reset Handler
 ```
+
+> **Important — Cortex-M Thumb State:** All exception handler addresses in the vector table must have bit 0 (LSB) set to 1. This tells the processor the handler uses Thumb instructions. Cortex-M4 only supports Thumb; if LSB=0, the processor faults immediately (ARMv7-M Architecture Reference Manual DDI 0403, §2.3.4).
+>
+> The linker script achieves this with `| 1` on the handler address. Note: `LONG(Reset_Handler)` alone does NOT set LSB — the assembler/compiler sets it automatically for symbols declared with `.thumb_func` or `.type ..., %function`, but the linker script must do it explicitly for vector table entries.
 
 ### Linker Script
 
@@ -148,8 +154,8 @@ SECTIONS
     .vector_table :
     {
         LONG(_stack_top)          /* Initial MSP */
-        LONG(Reset_Handler)       /* Reset handler address */
-    } > FLASH
+        LONG(Reset_Handler | 1)   /* Reset handler (LSB=1 for Thumb, per ARMv7-M §2.3.4) */
+     } > FLASH
 
     .text :
     {
@@ -517,7 +523,7 @@ led-blinker-ada/
 project Led_Blinker is
 
    for Target use "arm-eabi";
-   for Runtime use "ravenscar-sfp-stm32f4";
+   for Runtime use "light-stm32f4";
 
    for Source_Dirs use (".");
    for Object_Dir use "obj";
@@ -593,7 +599,7 @@ end S.STM32F4;
 
 ```ada
 -- startup.adb — Minimal startup for Ada on Cortex-M3
--- The Ravenscar runtime handles .data/.bss initialization.
+-- The Light runtime handles .data/.bss initialization.
 -- This package provides the reset handler entry point.
 
 pragma Warnings (Off);
@@ -669,7 +675,7 @@ end Main;
 ### Build (Ada)
 
 ```bash
-# Requires GNAT ARM ELF toolchain with Ravenscar runtime
+# Requires GNAT ARM ELF toolchain with Light runtime
 # Typically installed via Alire or AdaCore GNAT Studio
 
 gprbuild -P led_blinker.gpr -p
@@ -678,7 +684,7 @@ gprbuild -P led_blinker.gpr -p
 arm-eabi-objcopy -O binary obj/main led-blinker.bin
 ```
 
-> **Warning:** Ada bare-metal tooling requires a GNAT installation configured for ARM with the Ravenscar-SFP runtime. This is typically available via AdaCore's GNAT Embedded or the open-source `gnat-arm-elf` package with runtime support.
+> **Warning:** Ada bare-metal tooling requires a GNAT installation configured for ARM with the Light runtime. This is typically available via AdaCore's GNAT Embedded or the `gnat-arm-elf` crate via Alire with a suitable light-profile runtime (e.g. `light_stm32f4xx`).
 
 ## Implementation: Zig
 
@@ -1012,8 +1018,8 @@ The project includes a Renode script (`renode/led-blinker.resc`) that:
 | **Entry point**          | `Reset_Handler` in assembly    | `#[entry]` macro from `cortex-m-rt`   | Exported `main` procedure        | `Reset_Handler` with inline asm  |
 | **Volatile access**      | `volatile` type qualifier      | `read_volatile` / `write_volatile`    | `pragma Volatile`                | `*volatile` pointer type         |
 | **Linker script**        | Hand-written `.ld`             | `memory.x` + `link.x` from crate      | Hand-written `.ld`               | Hand-written `.ld`               |
-| **Startup code**         | Assembly `.s` file             | Provided by `cortex-m-rt`             | Runtime handles it (Ravenscar)   | Inline asm in `startup.zig`      |
-| **No-std declaration**   | `-ffreestanding -nostdlib`     | `#![no_std] #![no_main]`              | `ravenscar-sfp` runtime          | `freestanding` target            |
+| **Startup code**         | Assembly `.s` file             | Provided by `cortex-m-rt`             | Runtime handles it (Light)       | Inline asm in `startup.zig`      |
+| **No-std declaration**   | `-ffreestanding -nostdlib`     | `#![no_std] #![no_main]`              | `light` runtime                  | `freestanding` target            |
 | **Infinite loop**        | `while (1) {}`                 | `loop {}` (type `!`)                  | `loop ... end loop;`             | `while (true) {}`                |
 
 ## Next Steps
@@ -1033,6 +1039,22 @@ You now understand the boot process, memory layout, and register access for bare
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: Programmer's Model (MSP, vector table), Ch. 4: Memory Model
 - [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception entry and return, vector table structure
+- [4SE03 ARM Architecture (PDF)](https://4se03.telecom-paris.fr/supports/architecture_se.pdf) — French overview
+- [4SE03 ARM Assembly Guide](https://4se03.telecom-paris.fr/supports/asm-arm/) — French assembly tutorial
+- [4SE03 Bare-Metal TP](https://4se03.telecom-paris.fr/tp) — Practical exercises (French)
+
+### Startup Code & crt0.s References
+- [ARM Community: Writing your own startup code for Cortex-M](https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/writing-your-own-startup-code-for-cortex-m) — Tutorial for Cortex-M startup assembly
+- [ARM Community: Decoding the Startup file for Arm Cortex-M4](https://developer.arm.com/community/arm-community-blogs/b/architectures-and-processors-blog/posts/decoding-the-startup-file-for-arm-cortex-m4) — Detailed startup file walkthrough
+- [Rowley crt0.s Documentation](https://www.rowleydownload.co.uk/arm/documentation/arm_crt0.htm) — crt0.s structure, sections, initialization steps
+- [Embedded Artistry: Exploring Startup Implementations (Newlib ARM)](https://embeddedartistry.com/blog/2019/04/17/exploring-startup-implementations-newlib-arm/) — Newlib ARM startup analysis
+- [Wasil Zafar ARM Assembly Part 14](https://www.wasilzafar.com/pages/series/arm-assembly/arm-assembly-14-cortex-m-embedded.html) — Cortex-M assembly & bare-metal, crt0, linker scripts
+
+### Linker Script References
+- [GNU LD MEMORY Command](https://sourceware.org/binutils/docs/ld/MEMORY.html) — Linker script memory region definition
+- [GNU LD SECTIONS Command](https://sourceware.org/binutils/docs/ld/SECTIONS.html) — Output section control
+- [Embedds: Programming STM32 with GNU Tools (Linker Script)](https://embedds.com/programming-stm32-discovery-using-gnu-tools-linker-script/) — Practical linker script tutorial
+- [Understanding the Linker Script (Stack Overflow)](https://stackoverflow.com/questions/40532180/understanding-the-linkerscript-for-an-arm-cortex-m-microcontroller) — Detailed walkthrough with comments
 
 ### Tools & Emulation
 - [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html)

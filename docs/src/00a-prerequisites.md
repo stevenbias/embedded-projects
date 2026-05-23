@@ -165,6 +165,12 @@ alr toolchain
 # Should show gnat_arm_elf as installed
 ```
 
+> **Note:** The runtimes for ARM 32-bit cross-compilation are located in `~/.alire/arm-eabi/lib/gnat` by default.
+
+### Alternative: Install Toolchain Outside of Alire
+
+You can also install the GNAT ARM ELF toolchain independently of Alire. Pre-built toolchains with bare-metal runtimes are available from the [Alire documentation](https://alire.ada.dev/docs/#release-20) or AdaCore's GNAT downloads.
+
 ### Verify GNAT Tools
 
 ```bash
@@ -457,3 +463,5 @@ With all toolchains installed and verified, proceed to:
 - [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — netduinoplus2 machine, supported peripherals
 - [Renode Documentation](https://docs.renode.io/) — Multi-node simulation, bus analyzers, peripheral models
 - [ARM EABI Specification (IHI 0045)](https://github.com/ARM-software/abi-aa/releases) — Procedure call standard, stack alignment, calling conventions
+- [GNU make et Makefiles (4SE03)](https://4se03.telecom-paris.fr/supports/makefiles.pdf) — French PDF tutorial
+- [Git Memo (4SE03)](https://4se03.telecom-paris.fr/memento/memento-git.html) — Quick reference (French)

@@ -42,6 +42,7 @@
   --text-callout-note: #1565c0;
   --text-topbar: #1a1a2e;
   --text-checkbox: #ffffff;
+  --text-success: #28a745;
 
   --border-primary: #e2e5e9;
   --border-secondary: #d1d5db;
@@ -523,6 +524,39 @@ pre {
   font-size: 0.875rem;
   line-height: 1.6;
   box-shadow: var(--shadow-sm);
+  position: relative;
+}
+
+.copy-btn {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  background: var(--bg-code);
+  border: 1px solid var(--border-code);
+  border-radius: var(--radius-sm);
+  padding: 0.25rem 0.5rem;
+  font-size: 0.75rem;
+  color: var(--text-code);
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.2s, background 0.2s;
+  font-family: inherit;
+}
+
+pre:hover .copy-btn {
+  opacity: 1;
+}
+
+.copy-btn:hover {
+  background: var(--bg-hover);
+}
+
+.copy-btn.copied {
+  color: var(--text-success);
+}
+
+.copy-btn.failed {
+  color: #dc3545;
 }
 
 pre code {
