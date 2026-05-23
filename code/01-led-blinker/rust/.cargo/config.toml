@@ -1,0 +1,12 @@
+# For more information, check: https://doc.rust-lang.org/cargo/reference/config.html
+# And https://blog.gistre.epita.fr/posts/dorian.peron-2023-09-07-introduction_to_embedded_rust/
+
+[build]
+target = "thumbv7em-none-eabihf"
+
+[target.thumbv7em-none-eabihf]
+linker = "arm-none-eabi-gcc"
+rustflags = [
+    "-C", "link-arg=-nostartfiles",
+    "-C", "link-arg=-T../common/linker.ld"
+]

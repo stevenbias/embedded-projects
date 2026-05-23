@@ -13,7 +13,6 @@
     .extern _stack_top
 
     .global Reset_Handler
-    .global Default_Handler
 
 /* Vector table — defined here so assembler sets Thumb bit on Reset_Handler */
     .section .isr_vector, "a", %progbits
