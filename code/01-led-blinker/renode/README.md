@@ -45,6 +45,7 @@ Inside the Renode monitor:
 |---------|-------------|
 | `start` | Start/continue emulation |
 | `pause` | Pause emulation |
+| `machine Reset` | Reset the emulated machine (CPU + peripherals) |
 | `UserLED State` | Check current LED state (True/False) |
 | `logLevel -1 UserLED` | Log every LED state change |
 | `sysbus.gpioPortA ReadDoubleWord 0x14` | Read GPIOA ODR register (bit 5 = LED) |

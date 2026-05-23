@@ -1,6 +1,5 @@
 #![no_std]
 #![no_main]
-#![no_mangle]
 
 const RCC_BASE: u32 = 0x40023800;
 const GPIOA_BASE: u32 = 0x40020000;
@@ -17,26 +16,7 @@ const SYSTICK_CTRL: *mut u32 = (SYSTICK_BASE + 0x00) as *mut u32;
 const SYSTICK_LOAD: *mut u32 = (SYSTICK_BASE + 0x04) as *mut u32;
 const SYSTICK_VAL: *mut u32 = (SYSTICK_BASE + 0x08) as *mut u32;
 
-extern "C" {
-    static mut _sbss: u32;
-    static mut _ebss: u32;
-    static mut _sdata: u32;
-    static mut _edata: u32;
-    static mut _sidata: u32;
-}
-
-#[no_mangle]
-pub unsafe extern "C" fn Reset() -> ! {
-    main();
-    loop {}
-}
-
-// The reset vector, a pointer into the reset handler
-#[unsafe(link_section = ".vector_table.reset_vector")]
 #[unsafe(no_mangle)]
-pub static RESET_VECTOR: unsafe extern "C" fn() -> ! = Reset;
-
-#[no_mangle]
 pub fn main() {
     unsafe {
         RCC_AHB1ENR.write_volatile(RCC_AHB1ENR.read_volatile() | (1 << 0));

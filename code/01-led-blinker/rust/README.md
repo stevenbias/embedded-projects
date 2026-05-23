@@ -1,6 +1,6 @@
 # LED Blinker in Rust
 
-This is the Rust implementation of the LED blinker project for the STM32F405 microcontroller (NUCLEO-F446RE board).
+This is the Rust implementation of the LED blinker project for the STM32F446RE microcontroller (NUCLEO-F446RE board).
 
 ## Comparison with C Version
 
@@ -108,10 +108,10 @@ fn main() {
 [package]
 name = "led-blinker"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 
 [profile.release]
-opt-level = "z"
+opt-level = "s"
 lto = true
 ```
 

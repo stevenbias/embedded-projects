@@ -19,7 +19,7 @@ all: $(TARGET).bin size
 
 $(TARGET).elf:
 	cargo build --release
-	cp target/thumbv7m-none-eabi/release/$(TARGET) $@
+	cp target/thumbv7em-none-eabihf/release/$(TARGET) $@
 
 $(TARGET).bin: $(TARGET).elf
 	$(OBJCOPY) -O binary $< $@
