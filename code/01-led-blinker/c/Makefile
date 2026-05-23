@@ -1,4 +1,4 @@
-# Makefile — LED Blinker (C / STM32F405)
+# Makefile — LED Blinker (C / STM32F4446)
 
 PREFIX	= arm-none-eabi-
 CC      = $(PREFIX)gcc
@@ -12,7 +12,6 @@ OBJS_DIR = build
 
 LINKER_SCRIPT = ../common/linker.ld
 STARTUP_FILE = ../common/crt0.s
-# STARTUP_FILE = ../common/startup.s
 
 SRCS    = $(wildcard $(SRCS_DIR)/*.c)
 OBJS    = $(SRCS:$(SRCS_DIR)/%.c=$(OBJS_DIR)/%.o)

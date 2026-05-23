@@ -17,7 +17,7 @@ This is a foundational embedded systems project. Every RTOS you will ever use (F
 - Priority-based scheduling with round-robin within equal priorities
 - Using the SysTick timer as a periodic system tick
 - Yielding and sleeping from tasks
-- Language-specific approaches: inline asm, `cortex-m` crate, Ravenscar tasking, comptime config
+- Language-specific approaches: inline asm, `cortex-m` crate, Light-Tasking with Ravenscar profile, comptime config
 - Verifying scheduler behavior in QEMU with GDB
 
 ## Prerequisites
@@ -970,7 +970,7 @@ arm-none-eabi-gdb target/thumbv7em-none-eabihf/release/scheduler-rust
 
 ## Implementation: Ada
 
-Ada's Ravenscar profile provides a built-in cooperative tasking model. This implementation shows both the low-level approach (matching the other languages) and the idiomatic Ravenscar approach.
+Ada's Ravenscar profile (via the Light-Tasking runtime) provides a built-in cooperative tasking model. This implementation shows both the low-level approach (matching the other languages) and the idiomatic Ravenscar approach.
 
 ### Project Structure
 
@@ -1386,7 +1386,7 @@ begin
 end LED_Task;
 ```
 
-The Ravenscar runtime handles all scheduling, stack management, and context switching automatically. The GNAT Ravenscar runtime for ARM Cortex-M uses exactly the same primitives you implemented above.
+The Light-Tasking runtime with the Ravenscar profile handles all scheduling, stack management, and context switching automatically. It uses exactly the same primitives you implemented above.
 
 ---
 

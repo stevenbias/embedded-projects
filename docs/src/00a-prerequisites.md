@@ -165,6 +165,12 @@ alr toolchain
 # Should show gnat_arm_elf as installed
 ```
 
+> **Note:** The runtimes for ARM 32-bit cross-compilation are located in `~/.alire/arm-eabi/lib/gnat` by default.
+
+### Alternative: Install Toolchain Outside of Alire
+
+You can also install the GNAT ARM ELF toolchain independently of Alire. Pre-built toolchains with bare-metal runtimes are available from the [Alire documentation](https://alire.ada.dev/docs/#release-20) or AdaCore's GNAT downloads.
+
 ### Verify GNAT Tools
 
 ```bash

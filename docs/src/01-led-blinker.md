@@ -523,7 +523,7 @@ led-blinker-ada/
 project Led_Blinker is
 
    for Target use "arm-eabi";
-   for Runtime use "ravenscar-sfp-stm32f4";
+   for Runtime use "light-stm32f4";
 
    for Source_Dirs use (".");
    for Object_Dir use "obj";
@@ -599,7 +599,7 @@ end S.STM32F4;
 
 ```ada
 -- startup.adb — Minimal startup for Ada on Cortex-M3
--- The Ravenscar runtime handles .data/.bss initialization.
+-- The Light runtime handles .data/.bss initialization.
 -- This package provides the reset handler entry point.
 
 pragma Warnings (Off);
@@ -675,7 +675,7 @@ end Main;
 ### Build (Ada)
 
 ```bash
-# Requires GNAT ARM ELF toolchain with Ravenscar runtime
+# Requires GNAT ARM ELF toolchain with Light runtime
 # Typically installed via Alire or AdaCore GNAT Studio
 
 gprbuild -P led_blinker.gpr -p
@@ -684,7 +684,7 @@ gprbuild -P led_blinker.gpr -p
 arm-eabi-objcopy -O binary obj/main led-blinker.bin
 ```
 
-> **Warning:** Ada bare-metal tooling requires a GNAT installation configured for ARM with the Ravenscar-SFP runtime. This is typically available via AdaCore's GNAT Embedded or the open-source `gnat-arm-elf` package with runtime support.
+> **Warning:** Ada bare-metal tooling requires a GNAT installation configured for ARM with the Light runtime. This is typically available via AdaCore's GNAT Embedded or the `gnat-arm-elf` crate via Alire with a suitable light-profile runtime (e.g. `light_stm32f4xx`).
 
 ## Implementation: Zig
 
@@ -1018,8 +1018,8 @@ The project includes a Renode script (`renode/led-blinker.resc`) that:
 | **Entry point**          | `Reset_Handler` in assembly    | `#[entry]` macro from `cortex-m-rt`   | Exported `main` procedure        | `Reset_Handler` with inline asm  |
 | **Volatile access**      | `volatile` type qualifier      | `read_volatile` / `write_volatile`    | `pragma Volatile`                | `*volatile` pointer type         |
 | **Linker script**        | Hand-written `.ld`             | `memory.x` + `link.x` from crate      | Hand-written `.ld`               | Hand-written `.ld`               |
-| **Startup code**         | Assembly `.s` file             | Provided by `cortex-m-rt`             | Runtime handles it (Ravenscar)   | Inline asm in `startup.zig`      |
-| **No-std declaration**   | `-ffreestanding -nostdlib`     | `#![no_std] #![no_main]`              | `ravenscar-sfp` runtime          | `freestanding` target            |
+| **Startup code**         | Assembly `.s` file             | Provided by `cortex-m-rt`             | Runtime handles it (Light)       | Inline asm in `startup.zig`      |
+| **No-std declaration**   | `-ffreestanding -nostdlib`     | `#![no_std] #![no_main]`              | `light` runtime                  | `freestanding` target            |
 | **Infinite loop**        | `while (1) {}`                 | `loop {}` (type `!`)                  | `loop ... end loop;`             | `while (true) {}`                |
 
 ## Next Steps
