@@ -2,9 +2,12 @@
 #include "main.h"
 
 static void led_init(void) {
-  RCC_AHB1ENR |= (1U << 0);
-  GPIOA_MODER &= ~(0x3U << (LED_PIN * 2));
-  GPIOA_MODER |= (0x1U << (LED_PIN * 2));
+  /* Enable GPIOA clock on the AHB1 bus */
+  RCC_AHB1ENR |= RCC_GPIOA_CLK_EN;
+
+  /* Configure PA5 as general-purpose output (MODER5 = 0b01) */
+  GPIOA_MODER &= ~(GPIO_MODE_MASK << (LED_PIN * 2));
+  GPIOA_MODER |= (GPIO_MODE_OUTPUT << (LED_PIN * 2));
 }
 
 static void led_toggle(void) { GPIOA_ODR ^= (1U << LED_PIN); }
@@ -12,11 +15,16 @@ static void led_toggle(void) { GPIOA_ODR ^= (1U << LED_PIN); }
 void delay_ms(uint32_t ms) {
   uint32_t cycles = (HSI_CLOCK_HZ / 1000U) * ms; // SysTick is a 24-bit timer,
   // so we need to handle delays longer than ~16.7ms
-  SYSTICK_LOAD = cycles & 0xFFFFFFU;
-  SYSTICK_VAL = 0;
-  SYSTICK_CTRL = 0b101; // Enable SysTick with HSI clock
-  while ((SYSTICK_CTRL & 0x10000U) == 0) {
+  SYSTICK_LOAD = cycles & SYSTICK_RELOAD_MASK;
+  SYSTICK_VAL = 0; /* Write clears the counter */
+
+  SYSTICK_CTRL = SYSTICK_ENABLE | SYSTICK_CLKSRC_CPU;
+
+  /* Wait for COUNTFLAG: counter decrements and sets flag when reaching 0 */
+  while ((SYSTICK_CTRL & SYSTICK_COUNTFLAG) == 0) {
   }
+
+  /* Stop the timer to save power until the next call */
   SYSTICK_CTRL = 0;
 }
 
