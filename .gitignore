@@ -1,10 +1,12 @@
 docs/output/
 
 # C
+build/
 *.o
 *.elf
 *.bin
 *.hex
+*.map
 
 # Rust
 code/**/rust/target/
