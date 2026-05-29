@@ -384,7 +384,7 @@ uint32_t crc32_table(const uint8_t *data, size_t len) {
 #include <stdbool.h>
 
 #define FLASH_BASE      0x08000000
-#define FLASH_SECTOR_SIZE 16384  /* STM32F405: 16KB sectors (sector 0) */
+#define FLASH_SECTOR_SIZE 16384  /* STM32F446RE: 16KB sectors (sector 0) */
 
 #define APP_ADDR        0x08004000
 #define APP_MAX_SIZE    (1008 * 1024)
@@ -412,7 +412,7 @@ flash_status_t flash_verify(uint32_t addr, const uint8_t *expected, size_t len);
 ```c
 #include "flash.h"
 
-/* STM32F405 Flash registers */
+/* STM32F446RE Flash registers */
 #define FLASH_KEYR      (*(volatile uint32_t *)0x40023C04)
 #define FLASH_SR        (*(volatile uint32_t *)0x40023C0C)
 #define FLASH_CR        (*(volatile uint32_t *)0x40023C10)
@@ -513,7 +513,7 @@ char uart_getc(void);
 ```c
 #include "uart.h"
 
-/* STM32F405 USART1 registers */
+/* STM32F446RE USART1 registers */
 #define USART1_SR     (*(volatile uint32_t *)0x40011000)
 #define USART1_DR     (*(volatile uint32_t *)0x40011004)
 #define USART1_BRR    (*(volatile uint32_t *)0x40011008)
@@ -825,7 +825,7 @@ void HardFault_Handler(void) { while (1); }
 ```c
 #include <stdint.h>
 
-/* GPIO for STM32F405 (LED on PA5) */
+/* GPIO for STM32F446RE (LED on PA5) */
 #define RCC_AHB1ENR   (*(volatile uint32_t *)0x40023830)
 #define GPIOA_MODER   (*(volatile uint32_t *)0x40020000)
 #define GPIOA_ODR     (*(volatile uint32_t *)0x40020014)
@@ -2199,8 +2199,8 @@ Breakpoint ...
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 3: Flash interface (FLASH_KEYR, FLASH_SR, FLASH_CR — PG, SER, STRT, BSY), sector erase, half-word programming; Ch. 7: RCC (clock enables)
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Flash sector layout (16KB sectors for sector 0), memory map
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 3: Flash interface (FLASH_KEYR, FLASH_SR, FLASH_CR — PG, SER, STRT, BSY), sector erase, half-word programming; Ch. 7: RCC (clock enables)
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Flash sector layout (16KB sectors for sector 0), memory map
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: Vector table (initial MSP, Reset_Handler), SCB->VTOR (Vector Table Offset Register at 0xE000ED08), AIRCR (Application Interrupt and Reset Control Register at 0xE000ED0C, SYSRESETREQ)

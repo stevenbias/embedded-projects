@@ -20,7 +20,7 @@ This project teaches you the foundational mechanics of bare-metal programming th
 - Why `volatile` is non-negotiable
 - How to configure the system clock
 
-You will implement the same LED blinker in **C**, **Rust**, **Ada**, and **Zig** — each targeting the STM32F405 (Cortex-M4F) running under QEMU's `netduinoplus2` machine. The same code also runs on the NUCLEO-F446RE (STM32F446) with no changes. By the end, you will understand not only how to blink an LED, but how each language approaches the bare-metal problem space.
+You will implement the same LED blinker in **C**, **Rust**, **Ada**, and **Zig** — each targeting the STM32F446RE (Cortex-M4F) on a **NUCLEO-F446RE** board. The same code also runs under QEMU's `netduinoplus2` machine (which emulates an STM32F405, from the same STM32F4 family) with no changes. By the end, you will understand not only how to blink an LED, but how each language approaches the bare-metal problem space.
 
 > **Tip:** If you already know one of these languages, skim that section and focus on the others. The real value is in comparing approaches.
 
@@ -28,13 +28,13 @@ You will implement the same LED blinker in **C**, **Rust**, **Ada**, and **Zig**
 
 | Property        | Value                              |
 |-----------------|------------------------------------|
-| Board           | Netduino Plus 2 (QEMU) / NUCLEO-F446RE (HW) |
-| MCU             | STM32F405 / STM32F446              |
+| Board           | NUCLEO-F446RE (also runs under QEMU's netduinoplus2) |
+| MCU             | STM32F446RE              |
 | Core            | ARM Cortex-M4F                     |
 | Flash           | 1 MiB (QEMU) / 512 KiB (NUCLEO) @ `0x08000000` |
 | SRAM            | 128 KiB @ `0x20000000`             |
 | LED (User)      | PA5 (GPIO Port A, Pin 5)           |
-| QEMU Machine    | `netduinoplus2`                    |
+| QEMU Machine    | `netduinoplus2` (emulates STM32F405, same F4 family) |
 
 The user LED is wired to **PA5**. To blink it, we need to:
 
@@ -72,7 +72,7 @@ Index 1: Reset Handler
 
 ### Linker Script
 
-The linker script tells the linker where to place each section in the target's memory map. A minimal script for STM32F405 defines:
+The linker script tells the linker where to place each section in the target's memory map. A minimal script for STM32F446RE defines:
 
 - **FLASH** region at `0x08000000`, length `1024K`
 - **RAM** region at `0x20000000`, length `128K`
@@ -136,7 +136,7 @@ led-blinker-c/
 ### Linker Script (`linker.ld`)
 
 ```ld
-/* linker.ld — STM32F405 memory layout */
+/* linker.ld — STM32F446RE memory layout */
 ENTRY(Reset_Handler)
 
 MEMORY
@@ -192,7 +192,7 @@ SECTIONS
 ### Startup Assembly (`startup.s`)
 
 ```armasm
-/* startup.s — Cortex-M4F startup for STM32F405 */
+/* startup.s — Cortex-M4F startup for STM32F446RE */
 
     .syntax unified
     .cpu cortex-m4
@@ -257,7 +257,7 @@ Default_Handler:
 ### Main Code (`main.c`)
 
 ```c
-/* main.c — LED blinker for STM32F405 (Netduino Plus 2 / NUCLEO-F446RE) */
+/* main.c — LED blinker for STM32F446RE (NUCLEO-F446RE) */
 
 #include <stdint.h>
 
@@ -303,7 +303,7 @@ int main(void)
 ### Makefile
 
 ```makefile
-# Makefile — LED Blinker (C / STM32F405)
+# Makefile — LED Blinker (C / STM32F446RE)
 
 CC      = arm-none-eabi-gcc
 AS      = arm-none-eabi-gcc
@@ -400,7 +400,7 @@ rustflags = [
 ### `memory.x` (Linker Script)
 
 ```ld
-/* memory.x — Memory layout for STM32F405 */
+/* memory.x — Memory layout for STM32F446RE */
 
 MEMORY
 {
@@ -846,7 +846,7 @@ export fn main_entry() callconv(.C) noreturn {
 ### `src/main.zig`
 
 ```zig
-// main.zig — LED blinker for STM32F405
+// main.zig — LED blinker for STM32F446RE
 
 const std = @import("std");
 
@@ -1033,8 +1033,8 @@ You now understand the boot process, memory layout, and register access for bare
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 7: Reset and clock control (RCC), Ch. 8: General-purpose I/Os (GPIO)
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 7: Reset and clock control (RCC), Ch. 8: General-purpose I/Os (GPIO)
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: Programmer's Model (MSP, vector table), Ch. 4: Memory Model

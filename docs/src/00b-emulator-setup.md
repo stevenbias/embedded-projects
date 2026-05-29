@@ -33,10 +33,10 @@ QEMU is the primary emulator for this course. It supports ARM Cortex-M3/M4/M0+ w
 
 | Board | QEMU Machine | CPU | Why This Board |
 |---|---|---|---|
-| **Netduino Plus 2** | `netduinoplus2` | STM32F405 (Cortex-M4F) | Primary QEMU target — same STM32F4 family as our real hardware |
+| **NUCLEO-F446RE** | `netduinoplus2` (QEMU) | STM32F446RE (STM32F405 under QEMU) | Primary target — QEMU emulates the compatible STM32F405 |
 | **Virt** | `virt` | Configurable (Cortex-M3/M4) | Generic fallback when netduinoplus2 lacks a peripheral |
 
-> **Tip:** All projects target `netduinoplus2` in QEMU. The `virt` machine is only used as a fallback for peripherals not simulated on netduinoplus2 (CAN, I2C, USB).
+> **Tip:** All projects target the NUCLEO-F446RE (emulated via `netduinoplus2` in QEMU). The `virt` machine is only used as a fallback for peripherals not simulated on netduinoplus2 (CAN, I2C, USB).
 
 ---
 
@@ -45,7 +45,7 @@ QEMU is the primary emulator for this course. It supports ARM Cortex-M3/M4/M0+ w
 ### Running Firmware (ELF)
 
 ```bash
-# Run an ELF file on Netduino Plus 2 (primary target)
+# Run an ELF file on the NUCLEO-F446RE target (emulated via netduinoplus2)
 qemu-system-arm -M netduinoplus2 -kernel firmware.elf
 
 # Run with serial output to terminal
@@ -293,7 +293,7 @@ While QEMU is the primary development environment, all projects also run on real
 
 ### Why NUCLEO-F446RE?
 
-- **Same family as QEMU target** — STM32F446 is in the STM32F4 family, sharing the same GPIO model (`MODER/OTYPER/AFR`), peripheral architecture, and register layout as the STM32F405 used in `netduinoplus2`
+- **Same family as QEMU target** — STM32F446RE is the primary target. QEMU's `netduinoplus2` machine emulates an STM32F405 (same STM32F4 family), sharing the same GPIO model (`MODER/OTYPER/AFR`), peripheral architecture, and register layout.
 - **On-board ST-Link** — no external debugger needed; flash and debug via USB
 - **Arduino headers** — easy to connect shields, sensors, and modules
 - **Widely available** — sold by ST directly, Digi-Key, Mouser, and all major distributors
@@ -521,8 +521,8 @@ With QEMU and Renode configured, you're ready to master debugging:
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Complete peripheral reference for STM32F4 family
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Pin assignments, memory sizes, electrical characteristics
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Complete peripheral reference for STM32F4 family
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Pin assignments, memory sizes, electrical characteristics
 - [NUCLEO-F446RE Documentation](https://www.st.com/en/evaluation-tools/nucleo-f446re.html) — Board schematics, user manual, ST-Link/V2-1 details
 - [ST-Link Documentation](https://www.st.com/en/development-tools/st-link-v2.html) — ST-Link/V2-1 programmer and debugger
 

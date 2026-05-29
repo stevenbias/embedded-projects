@@ -1143,7 +1143,7 @@ const ByteRingBuffer = @import("ringbuf.zig").ByteRingBuffer;
 var uart_rx_buf: ByteRingBuffer = ByteRingBuffer.init();
 
 export fn USART1_IRQHandler() void {
-    // Read data register (STM32F405)
+    // Read data register (STM32F446RE)
     const usart1_dr = @as(*volatile u8, @ptrFromInt(0x40011004));
     const data = usart1_dr.*;
 
@@ -1285,7 +1285,7 @@ $1 = {head = 5, tail = 0, capacity = 256}
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 30: USART (interrupt-driven RX/TX for ring buffer integration)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 30: USART (interrupt-driven RX/TX for ring buffer integration)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 4: Memory model (memory barriers, execution ordering)

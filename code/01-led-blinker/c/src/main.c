@@ -1,4 +1,4 @@
-/* main.c — LED blinker for STM32F405 (NUCLEO-F446RE) */
+/* main.c — LED blinker for STM32F446RE (NUCLEO-F446RE) */
 #include "main.h"
 
 static void led_init(void) {

@@ -1,9 +1,9 @@
-/* linker.ld — STM32F405 memory layout */
+/* linker.ld — STM32F446RE memory layout */
 ENTRY(Reset_Handler)
 
 MEMORY
 {
-    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 1024K
+    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 512K
     RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 128K
 }
 

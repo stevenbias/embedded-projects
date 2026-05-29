@@ -1916,7 +1916,7 @@ Congratulations — you have completed the Embedded Development Mastery course. 
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 5: MPU (Memory Protection Unit for safety-critical memory isolation), Ch. 34: IWDG (watchdog for system health monitoring), Ch. 3: Flash interface (read protection levels)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 5: MPU (Memory Protection Unit for safety-critical memory isolation), Ch. 34: IWDG (watchdog for system health monitoring), Ch. 3: Flash interface (read protection levels)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 5: MPU (memory protection regions, access permissions), Ch. 3: Fault handlers (HardFault, MemManage, BusFault, UsageFault)

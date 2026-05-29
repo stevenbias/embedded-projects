@@ -159,13 +159,13 @@ cd renode && ./build.sh
 
 ## Implementation
 
-### STM32F405 Hardware Setup
+### STM32F446RE Hardware Setup
 
-#### Memory Map (STM32F405RG)
+#### Memory Map (STM32F446RE)
 
 | Region | Address Range     | Size   |
 |--------|-------------------|--------|
-| Flash  | 0x08000000–0x080FFFFF | 1024K |
+| Flash  | 0x08000000–0x0807FFFF | 512K |
 | SRAM   | 0x20000000–0x2001FFFF | 128K  |
 
 #### RCC Clock Enable (AHB1 for GPIO, APB1 for I2C)
@@ -243,12 +243,12 @@ The STM32F4 replaces CCR/TRISE with a single TIMINGR register. The layout is:
 | 400 kHz | 16 MHz     | 0x0010020A    | 1     | 2      | 0      | 10   | 10   |
 ```
 
-#### Linker Script (`stm32f405rg.ld`)
+#### Linker Script (`stm32f446re.ld`)
 
 ```ld
 MEMORY
 {
-    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 1024K
+    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 512K
     RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
@@ -1083,7 +1083,7 @@ where
     }
 }
 
-// --- Example usage with stm32f4xx-hal (STM32F405) ---
+// --- Example usage with stm32f4xx-hal (STM32F446RE) ---
 //
 // #[entry]
 // fn main() -> ! {
@@ -1928,9 +1928,9 @@ sudo apt install gcc-arm-none-eabi gdb-multiarch
 arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O2 \
     -fno-common -ffunction-sections -fdata-sections \
     -Wall -Wextra -Werror \
-    -T stm32f405rg.ld \
+    -T stm32f446re.ld \
     -o bmp280.elf \
-    main.c i2c.c bmp280.c startup_stm32f405xx.c
+    main.c i2c.c bmp280.c startup_stm32f446re.c
 
 # Generate binary
 arm-none-eabi-objcopy -O binary bmp280.elf bmp280.bin
@@ -1985,7 +1985,7 @@ zig build-exe main.zig -OReleaseFast
 Create a Renode platform file (`bmp280.resc`):
 
 ```
-# Create STM32F405 machine
+# Create STM32F446RE machine
 mach create
 
 # Add CPU
@@ -2068,8 +2068,8 @@ Expected output in the analyzer:
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 27: I2C (CR1, CR2, TIMINGR, OAR1), Ch. 8: GPIO (MODER, OTYPER open-drain, AF4 for I2C1)
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Pin multiplexing for I2C1 (PB6/PB7)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 27: I2C (CR1, CR2, TIMINGR, OAR1), Ch. 8: GPIO (MODER, OTYPER open-drain, AF4 for I2C1)
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Pin multiplexing for I2C1 (PB6/PB7)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — FPU usage for floating-point compensation math (FPv4-SP-D16)

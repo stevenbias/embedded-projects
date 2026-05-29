@@ -1,4 +1,4 @@
-# Makefile — LED Blinker (Rust / STM32F405)
+# Makefile — LED Blinker (Rust / STM32F446RE)
 
 PREFIX	= arm-none-eabi-
 CC      = $(PREFIX)gcc

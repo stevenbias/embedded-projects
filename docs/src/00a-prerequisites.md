@@ -89,7 +89,7 @@ This course targets a single ARM Cortex-M4F variant:
 
 ```bash
 # Cortex-M4F with FPU (STM32F4 — primary target for all projects)
-# Used on both QEMU (netduinoplus2 / STM32F405) and real hardware (NUCLEO-F446RE / STM32F446)
+# Primary target: NUCLEO-F446RE (STM32F446RE); also runs under QEMU (netduinoplus2)
 rustup target add thumbv7em-none-eabihf
 ```
 
@@ -342,18 +342,14 @@ chmod +x verify-toolchains.sh
 
 ## Target Hardware
 
-This course is designed to work in **emulation** (QEMU) and on **real hardware** with identical code.
+This course targets the **NUCLEO-F446RE** board (STM32F446RE) as its primary platform. All projects also run under QEMU via the `netduinoplus2` machine (which emulates a similar STM32F405 MCU from the same F4 family).
 
-| Property | QEMU (Primary) | Real Hardware |
-|---|---|---|
-| Board | Netduino Plus 2 | NUCLEO-F446RE |
-| MCU | STM32F405RGT6 | STM32F446RET6 |
-| Core | Cortex-M4F | Cortex-M4F |
-| Flash | 1 MiB | 512 KiB |
-| SRAM | 128 KiB | 128 KiB |
-| QEMU Machine | `netduinoplus2` | N/A (flashed via ST-Link) |
+| Board | NUCLEO-F446RE (with QEMU netduinoplus2 for emulation) |
+| MCU | STM32F446RET6 |
+| QEMU Machine | `netduinoplus2` (emulates STM32F405, same F4 family) |
+| Flashing | ST-Link |
 
-Both MCUs are in the STM32F4 family and share the same peripheral architecture (GPIO, USART, SPI, I2C, timers, etc.). Code written for one runs on the other with only a pin configuration header swap.
+The STM32F446RE and the emulated STM32F405 share the same Cortex-M4F core and peripheral architecture (GPIO, USART, SPI, I2C, timers, etc.). Code written for one runs on the other with only a pin configuration header swap.
 
 > **Note:** You do **not** need physical hardware to complete this course. All projects run in QEMU. The NUCLEO-F446RE (~$20-25) is recommended if you want to test on real silicon — it has an on-board ST-Link debugger, Arduino headers, and is widely available.
 
@@ -450,8 +446,8 @@ With all toolchains installed and verified, proceed to:
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Complete peripheral reference for STM32F4 family
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Pin assignments, memory sizes, electrical characteristics
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Complete peripheral reference for STM32F4 family
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Pin assignments, memory sizes, electrical characteristics
 - [NUCLEO-F446RE Documentation](https://www.st.com/en/evaluation-tools/nucleo-f446re.html) — Board schematics, user manual, ST-Link/V2-1 details
 
 ### ARM Documentation

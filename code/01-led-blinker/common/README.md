@@ -10,9 +10,9 @@ device's memory.
 
 ### Memory Regions
 
-The STM32F405 has two main memory regions:
+The STM32F446RE has two main memory regions:
 
-- **FLASH**: Origin `0x08000000`, 1024KB (1 MB). This is non-volatile storage
+- **FLASH**: Origin `0x08000000`, 512KB. This is non-volatile storage
   where the firmware is stored. It is readable and executable (`rx`).
 
 - **RAM**: Origin `0x20000000`, 128KB. This is volatile read-write memory

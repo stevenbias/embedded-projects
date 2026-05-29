@@ -26,12 +26,9 @@ This project teaches you:
 
 | Property        | Value                              |
 |-----------------|------------------------------------|
-| Board           | Netduino Plus 2 (QEMU) / NUCLEO-F446RE (HW) |
-| MCU             | STM32F405 / STM32F446              |
-| Core            | ARM Cortex-M4F                     |
-| LED             | PA5 (output)                       |
-| Button          | PA0 (input, EXTI Line 0)           |
-| QEMU Machine    | `netduinoplus2`                    |
+| Board           | NUCLEO-F446RE (also runs under QEMU's netduinoplus2) |
+| MCU             | STM32F446RE              |
+| QEMU Machine    | `netduinoplus2` (emulates STM32F405, same F4 family) |
 
 In QEMU, you can simulate a button press by writing to the GPIO input register via the QEMU monitor or GDB.
 
@@ -265,7 +262,7 @@ The vector table in `linker.ld` needs to include the SysTick and EXTI0 handlers.
 ### `main.c`
 
 ```c
-/* main.c — Button interrupts with software debouncing (STM32F405) */
+/* main.c — Button interrupts with software debouncing (STM32F446RE) */
 
 #include <stdint.h>
 
@@ -942,7 +939,7 @@ arm-eabi-objcopy -O binary obj/main button-interrupts.bin
 ### `src/main.zig`
 
 ```zig
-// main.zig — Button interrupts with atomic state machine (STM32F405)
+// main.zig — Button interrupts with atomic state machine (STM32F446RE)
 
 const std = @import("std");
 const atomic = std.atomic;
@@ -1096,7 +1093,7 @@ qemu-system-arm -machine netduinoplus2 -kernel button-interrupts.bin -nographic 
 
 ### Simulating Button Press via GDB
 
-Since QEMU's `netduinoplus2` doesn't have a physical button, you simulate presses by writing to the GPIO input register:
+Since the NUCLEO-F446RE's button is not accessible in QEMU's `netduinoplus2` emulation, you simulate presses by writing to the GPIO input register:
 
 ```bash
 # Terminal 2: Connect with GDB
@@ -1175,8 +1172,8 @@ From here, you can:
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 12: SYSCFG (EXTICR1), Ch. 13: EXTI (IMR, RTSR, FTSR, PR), Ch. 14: SysTick timer
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 12: SYSCFG (EXTICR1), Ch. 13: EXTI (IMR, RTSR, FTSR, PR), Ch. 14: SysTick timer
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 8: NVIC (ISER, IPR, priority levels), WFI instruction, DMB/DSB memory barriers
