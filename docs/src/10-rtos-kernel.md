@@ -3016,11 +3016,11 @@ $11 = 4   # priority restored to original
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 14: SysTick (periodic tick source), Ch. 7: RCC (clock configuration)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 10: Interrupts and events (section 10.1.2 SysTick calibration value register), Ch. 6: RCC (clock configuration)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: PendSV exception (designed for context switching, lowest priority), FPU context (FPCCR lazy stacking, FPCA bit in EXC_RETURN, S0-S15 + FPSCR save/restore), Ch. 8: NVIC (priority grouping)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception entry/return (full context switch sequence), B1.5: PendSV (pended while other ISRs run), B3.2: Stack alignment (8-byte alignment requirement)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: ARMv7-M exception model (exception entry/return for full context switch sequence; PendSV pended while other ISRs run; CCR.STKALIGN in System Control Space for 8-byte stack alignment)
 - [ARM EABI Specification (AAPCS)](https://github.com/ARM-software/abi-aa/releases) — Register preservation rules for context switch
 
 ### Tools & Emulation

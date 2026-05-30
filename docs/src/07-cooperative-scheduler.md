@@ -1913,12 +1913,12 @@ $3 = (uint32_t *) 0x200007c0
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 7: RCC (clock enable), SCB registers (SHPR3 for PendSV priority)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 6: RCC (clock enable), SCB registers (SHPR3 for PendSV priority)
 - [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Memory map
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: Programmer's Model (MSP vs PSP, CONTROL register, EXC_RETURN values 0xFFFFFFF9/0xFFFFFFFD), Ch. 4: Memory Model (stack alignment)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception entry and return (hardware stacking of R0-R3, R12, LR, PC, xPSR), B1.5: PendSV exception (designed for context switching), SysTick timer
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: ARMv7-M exception model (exception entry and return with hardware stacking of R0-R3, R12, LR, PC, xPSR; PendSV exception designed for context switching; SysTick timer)
 - [ARM EABI Specification (AAPCS)](https://github.com/ARM-software/abi-aa/releases) — Calling convention, callee-saved registers (R4-R11)
 
 ### Tools & Emulation

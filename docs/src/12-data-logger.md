@@ -3155,7 +3155,7 @@ xxd -l 512 sdcard.img | head -20
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 28: SPI (SD card SPI mode), Ch. 27: I2C (multi-sensor reads), Ch. 8: GPIO (pin configuration for SPI + I2C)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 26: SPI (SD card SPI mode), Ch. 24: I2C (multi-sensor reads), Ch. 7: GPIO (pin configuration for SPI + I2C)
 - [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Pin multiplexing
 
 ### External Specifications

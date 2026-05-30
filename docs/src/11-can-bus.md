@@ -2771,11 +2771,11 @@ renode --disable-gui can.resc
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 32: bxCAN (MCR, MSR, TSR, RF0R, IER, BTR bit timing, mailbox registers, FIFO, filter banks), Ch. 7: RCC (APB1ENR CAN1EN bit 25), Ch. 8: GPIO (AF9 for CAN on PA11/PA12)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 30: bxCAN (MCR, MSR, TSR, RF0R, IER, BTR bit timing, mailbox registers, FIFO, filter banks), Ch. 6: RCC (APB1ENR CAN1EN bit 25), Ch. 7: GPIO (AF9 for CAN on PA11/PA12)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — NVIC for CAN RX0 interrupt (IRQ 20)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Interrupt handling for CAN
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: ARMv7-M exception model (NVIC interrupt handling for CAN RX0 IRQ 20, interrupt priorities)
 
 ### CAN Standards
 - [ISO 11898-1:2015](https://www.iso.org/standard/63648.html) — CAN 2.0A/B frame format, bit timing, arbitration

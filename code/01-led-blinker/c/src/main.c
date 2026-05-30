@@ -92,7 +92,7 @@ static void button_init(void) {
 
 static bool button_is_pressed(void) {
   /* Read IDR bit 13; active-LOW, so invert: pressed = 1, released = 0 */
-  return ((GPIOC_IDR >> BUTTON_PIN) != 1);
+  return !((GPIOC_IDR >> BUTTON_PIN) & 1U);
 }
 
 /* =========================================================================

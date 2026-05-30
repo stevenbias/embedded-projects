@@ -2185,12 +2185,12 @@ Expected SPI transaction trace:
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 28: SPI (CR1, CR2, SR, DR), Ch. 8: GPIO (AF5 for SPI1 on PA5/PA6/PA7)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 26: SPI (CR1, CR2, SR, DR), Ch. 7: GPIO (AF5 for SPI1 on PA5/PA6/PA7)
 - [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — SPI pin assignments, alternate function mapping
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Memory model for SPI register access
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Memory barriers for SPI synchronization
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — A3.5: Memory types and attributes (memory order model for SPI register access), B5.2: System instruction descriptions (DMB/DSB/ISB barrier instructions)
 
 ### Flash Memory Documentation
 - [W25Q64JV Datasheet (Winbond)](https://www.winbond.com/resource-files/w25q64jv%20revj%2003272018%20plus.pdf) — Command set (0x03, 0x02, 0x20, 0x9F, 0x06, 0x05), page/sector/block geometry, JEDEC ID

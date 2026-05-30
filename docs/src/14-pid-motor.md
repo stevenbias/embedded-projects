@@ -2353,11 +2353,11 @@ gcc -O2 -o test_pid test_pid.c pid_controller.c -lm
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 17: TIM1–TIM8 (PWM generation for motor control), Ch. 18: ADC (current/voltage/temperature sensing), Ch. 34: IWDG (KR, PR, RLR, SR — independent watchdog for fault detection), Ch. 7: RCC (clock configuration)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 16: TIM1–TIM8 (PWM generation for motor control), Ch. 13: ADC (current/voltage/temperature sensing), Ch. 20: IWDG (KR, PR, RLR, SR — independent watchdog for fault detection), Ch. 6: RCC (clock configuration)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — FPU (FPv4-SP-D16 for floating-point PID), Ch. 4: Memory model (fixed-point arithmetic considerations)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — IWDG-like watchdog behavior, fault handling
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Exception model for fault handling (HardFault, NMI)
 - [ARM EABI Specification](https://github.com/ARM-software/abi-aa/releases) — Fixed-point Q15.16 arithmetic conventions
 
 ### Standards

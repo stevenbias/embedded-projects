@@ -2068,12 +2068,12 @@ Expected output in the analyzer:
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 27: I2C (CR1, CR2, TIMINGR, OAR1), Ch. 8: GPIO (MODER, OTYPER open-drain, AF4 for I2C1)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 24: I2C (CR1, CR2, TIMINGR, OAR1), Ch. 7: GPIO (MODER, OTYPER open-drain, AF4 for I2C1)
 - [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Pin multiplexing for I2C1 (PB6/PB7)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — FPU usage for floating-point compensation math (FPv4-SP-D16)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Memory ordering, DMB for I2C transaction synchronization
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — A3.5: Memory types and attributes (memory order model for I2C transaction synchronization), B5.2: System instruction descriptions (DMB barrier instruction)
 
 ### Sensor Documentation
 - [BMP280 Datasheet (Bosch BST-BMP280-DS001)](https://www.bosch-sensortec.com/media/boschsensortec/downloads/datasheets/bst-bmp280-ds001.pdf) — Register map, calibration coefficients, compensation formulas

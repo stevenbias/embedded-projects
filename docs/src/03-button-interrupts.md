@@ -1172,12 +1172,12 @@ From here, you can:
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 12: SYSCFG (EXTICR1), Ch. 13: EXTI (IMR, RTSR, FTSR, PR), Ch. 14: SysTick timer
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 8: SYSCFG (EXTICR1), Ch. 10: EXTI (IMR, RTSR, FTSR, PR), EXTI to NVIC IRQ mapping (IRQ 6 for EXTI0)
 - [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 8: NVIC (ISER, IPR, priority levels), WFI instruction, DMB/DSB memory barriers
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: Interrupts and exceptions, EXTI to NVIC mapping (IRQ 6 for EXTI0)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: ARMv7-M exception model (interrupts, exceptions, exception priorities)
 
 ### Tools & Emulation
 - [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html)

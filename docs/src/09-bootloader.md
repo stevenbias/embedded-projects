@@ -2199,12 +2199,12 @@ Breakpoint ...
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 3: Flash interface (FLASH_KEYR, FLASH_SR, FLASH_CR — PG, SER, STRT, BSY), sector erase, half-word programming; Ch. 7: RCC (clock enables)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 3: Flash interface (FLASH_KEYR, FLASH_SR, FLASH_CR — PG, SER, STRT, BSY), sector erase, half-word programming; Ch. 6: RCC (clock enables)
 - [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Flash sector layout (16KB sectors for sector 0), memory map
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: Vector table (initial MSP, Reset_Handler), SCB->VTOR (Vector Table Offset Register at 0xE000ED08), AIRCR (Application Interrupt and Reset Control Register at 0xE000ED0C, SYSRESETREQ)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception model (vector table relocation, MSP manipulation, exception return via BX LR), CPSID/CPSIE instructions
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: ARMv7-M exception model (vector table relocation, MSP manipulation, exception return via BX LR), B5.2: System instruction descriptions (CPSID/CPSIE for interrupt masking)
 - [ARM EABI Specification](https://github.com/ARM-software/abi-aa/releases) — Binary image format, ELF sections (.vectors, .text, .data, .bss)
 
 ### Tools & Emulation

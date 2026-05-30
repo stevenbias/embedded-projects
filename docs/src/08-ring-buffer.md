@@ -1285,11 +1285,11 @@ $1 = {head = 5, tail = 0, capacity = 256}
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 30: USART (interrupt-driven RX/TX for ring buffer integration)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 25: USART (interrupt-driven RX/TX for ring buffer integration)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 4: Memory model (memory barriers, execution ordering)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B2.2: Memory ordering (DMB, DSB, ISB), A3.4: Load/store exclusive (LDREX/STREX for atomic operations), weakly-ordered memory model
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — A3.5: Memory types and attributes and the memory order model (weakly-ordered memory model), A3.4: Synchronization and semaphores (LDREX/STREX for atomic operations), B5.2: Armv7-M system instruction descriptions (DMB, DSB, ISB barriers)
 - [ARM EABI Specification](https://github.com/ARM-software/abi-aa/releases) — Memory model, atomic operation semantics
 
 ### Tools & Emulation

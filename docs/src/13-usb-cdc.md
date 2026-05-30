@@ -2726,7 +2726,7 @@ picocom -b 115200 /dev/ttyACM0
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 33: USB OTG FS (GOTGCTL, GAHBCFG, GUSBCFG, GRSTCTL, GINTSTS/GINTMSK, GRXSTSR/GRXSTSP, endpoint registers, FIFO), Ch. 7: RCC (AHB2ENR OTGFSEN), Ch. 8: GPIO (AF10 for USB on PA11/PA12)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 31: USB OTG FS (GOTGCTL, GAHBCFG, GUSBCFG, GRSTCTL, GINTSTS/GINTMSK, GRXSTSR/GRXSTSP, endpoint registers, FIFO), Ch. 6: RCC (AHB2ENR OTGFSEN), Ch. 7: GPIO (AF10 for USB on PA11/PA12)
 - [NUCLEO-F446RE Documentation](https://www.st.com/en/evaluation-tools/nucleo-f446re.html) — USB OTG FS connector on NUCLEO-F446RE
 
 ### USB Specifications
