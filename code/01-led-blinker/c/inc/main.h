@@ -35,12 +35,14 @@
  *
  * Bit layout:
  *   Bit 0: GPIOAEN — GPIOA clock enable
+ *   Bit 2: GPIOCEN — GPIOC clock enable
  *   ...
  */
 #define RCC_AHB1ENR (*(volatile uint32_t *)(RCC_BASE + 0x30U))
 
 /* Clock enable bit positions for RCC_AHB1ENR (RM0390 §6.3.10) */
 #define RCC_GPIOA_CLK_EN (1U << 0)
+#define RCC_GPIOC_CLK_EN (1U << 2)
 
 /* ---- GPIO Port A (LED on PA5) ---- */
 #define GPIOA_BASE 0x40020000U
@@ -59,19 +61,38 @@
  */
 #define GPIOA_MODER (*(volatile uint32_t *)(GPIOA_BASE + 0x00U))
 
-/* 2-bit-per-pin mode values for MODER registers */
-#define GPIO_MODE_INPUT 0x0U
-#define GPIO_MODE_OUTPUT 0x1U
-#define GPIO_MODE_AF 0x2U
-#define GPIO_MODE_ANALOG 0x3U
-#define GPIO_MODE_MASK 0x3U
-
 /*
  * GPIOA_ODR — GPIO Port A Output Data Register (offset 0x14)
  *
  * Writing 1 to bit N sets pin N high; writing 0 drives it low.
  */
 #define GPIOA_ODR (*(volatile uint32_t *)(GPIOA_BASE + 0x14U))
+
+/* ---- GPIO Port C (Button on PC13) ---- */
+#define GPIOC_BASE 0x40020800U
+
+/*
+ * GPIOC_MODER — GPIO Port C Mode Register (offset 0x00)
+ * Same 2-bit-per-pin encoding as GPIOA_MODER.
+ * PC13 uses bits [27:26]. Reset value is 00 (input).
+ */
+#define GPIOC_MODER (*(volatile uint32_t *)(GPIOC_BASE + 0x00U))
+
+/*
+ * GPIOC_IDR — GPIO Port C Input Data Register (offset 0x10)
+ *
+ * Reading bit N returns the actual logic level on pin N.
+ * Unlike ODR, this reflects the real pin state even for outputs,
+ * which is useful when a pin is driven by an external source.
+ */
+#define GPIOC_IDR (*(volatile uint32_t *)(GPIOC_BASE + 0x10U))
+
+/* 2-bit-per-pin mode values for MODER registers */
+#define GPIO_MODE_INPUT 0x0U
+#define GPIO_MODE_OUTPUT 0x1U
+#define GPIO_MODE_AF 0x2U
+#define GPIO_MODE_ANALOG 0x3U
+#define GPIO_MODE_MASK 0x3U
 
 /* ---- SysTick Timer (System Timer, part of the Cortex-M4 core) ---- */
 #define SYSTICK_BASE 0xE000E010U
@@ -109,6 +130,7 @@
 /*
  * NUCLEO-F446RE board connections:
  *   PA5: User LED (green, directly mapped to the GPIO pin)
+ *   PC13: User Button (active LOW — pressed = 0, released = 1)
  *
  * Reference: NUCLEO-F446RE User Manual UM1724 §7.6
  */
