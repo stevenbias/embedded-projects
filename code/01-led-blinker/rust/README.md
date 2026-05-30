@@ -6,25 +6,29 @@ This is the Rust implementation of the LED blinker project for the STM32F446RE m
 
 | Metric | C | Rust |
 |--------|------|------|
-| **BIN size** | 170 bytes | 168 bytes |
-| **ELF size** | 7,112 bytes | 5,468 bytes |
+| **BIN size** | 236 bytes | 256 bytes |
+| **ELF size** | 11,944 bytes | 5,832 bytes |
 | **Text section** | ~100 bytes | 88 bytes |
 | **Dependencies** | None | None (bare-metal) |
 
-Rust is now smaller than C by 2 bytes!
+Rust is 20 bytes larger than C due to the panic handler stub.
 
 ## Project Structure
 
 ```
 rust/
 ├── README.md           # This file
-├── led-blinker.elf    # ELF binary
-├── led-blinker.bin    # Binary for flashing
-└── led-blinker/
-    ├── Cargo.toml   # No dependencies!
-    ├── linker.ld    # Custom linker script
-    ├── src/
-    │   └── main.rs # ~80 lines of Rust
+├── Cargo.toml          # No dependencies!
+├── Cargo.lock
+├── Makefile
+├── build.rs            # Assembles crt0.s via arm-none-eabi-gcc
+├── .cargo/config.toml  # Target: thumbv7em-none-eabihf
+├── src/
+│   ├── main.rs         # Application logic (~52 lines)
+│   ├── target.rs       # Register addresses as raw pointers
+│   └── time.rs         # SysTick delay function
+├── led-blinker.elf     # ELF binary
+└── led-blinker.bin     # Binary for flashing/simulation
 ```
 
 ## Build Prerequisites
@@ -58,25 +62,35 @@ cargo build --release
 ```rust
 #![no_std]
 #![no_main]
-#![no_mangle]
 
-// Hardware register addresses
-const RCC_AHB1ENR: *mut u32 = 0x40023830 as *mut u32;
-const GPIOA_MODER: *mut u32 = 0x40020000 as *mut u32;
-const GPIOA_ODR: *mut u32 = 0x40020014 as *mut u32;
+mod target;
+use crate::target::*;
 
-// Vector table at flash start
-#[link_section = ".vector_table"]
-static VectorTable: [u32; 2] = [0x20000400, 0x08000500];
+mod time;
+use crate::time::*;
 
-// Reset handler: zero .bss, copy .data, call main
-unsafe extern "C" fn Reset() -> ! { ... }
+fn led_init() {
+    unsafe {
+        // Enable GPIOA clock on AHB1 bus
+        RCC_AHB1ENR.write_volatile(RCC_AHB1ENR.read_volatile() | (1 << 0));
+        // Configure PA5 as output: MODER5 = 0b01
+        GPIOA_MODER.write_volatile(
+            (GPIOA_MODER.read_volatile() & !(0x3 << (LED_PIN * 2)))
+                | (0x1 << (LED_PIN * 2)),
+        );
+    }
+}
 
-fn main() {
-    // Enable GPIOA clock
-    // Configure PA5 as output
+fn button_is_pressed() -> bool {
+    unsafe { (GPIOC_IDR.read_volatile() >> BUTTON_PIN) & 1 == 0 }
+}
+
+#[unsafe(no_mangle)]
+pub fn main() {
+    led_init();
+    button_init();
     loop {
-        // Toggle LED
+        led_toggle();
         delay_ms(500);
     }
 }
@@ -87,18 +101,18 @@ fn main() {
 | Aspect | C | Rust |
 |--------|------|------|
 | Build system | Make + GCC | Cargo + rustc |
-| Startup | Assembly (`startup.s`) | Rust (`Reset()`) |
-| Linker script | `common/linker.ld` | `linker.ld` |
+| Startup | Assembly (`common/crt0.s`) | Shared `common/crt0.s` |
+| Linker script | `common/linker.ld` | Shared `common/linker.ld` |
 | Dependencies | None | None |
-| Binary size | 170 bytes | 168 bytes |
+| Binary size | 236 bytes | 256 bytes |
 
 ## Features
 
 - **Zero external crates** - No cortex-m, no cortex-m-rt
-- **Custom linker script** - Matches C's approach
-- **Manual startup** - .bss zeroing and .data copy in Rust
+- **Shared linker script** - Uses `common/linker.ld` (same as C)
+- **Shared startup code** - Uses `common/crt0.s` (same as C)
 - **Same register access** - Using `volatile` pointers
-- **Vector table** - In Rust source
+- **Vector table** - In shared `crt0.s`
 
 ## File Details
 
@@ -113,19 +127,20 @@ edition = "2024"
 [profile.release]
 opt-level = "s"
 lto = true
+panic = "abort"
 ```
 
-### `linker.ld`
+### `common/linker.ld` (shared with C)
 
 Custom linker script that:
 - Places vector table at `0x08000000`
-- Defines `.text`, `.data`, `.bss` sections
-- Provides `_sbss`, `_ebss`, `_sdata`, `_edata` symbols
+- Defines FLASH (1MB) and RAM (128KB) regions
+- Defines `.text`, `.rodata`, `.data`, `.bss` sections
+- Provides `_sdata`, `_edata`, `_lma_sdata`, `_sbss`, `_ebss` symbols
 
 ### `src/main.rs`
 
-- ~80 lines of Rust
-- Manual .bss zeroing
-- Manual .data copy
-- Direct hardware register access
-- SysTick-based delay
+- ~52 lines of Rust
+- Direct hardware register access via volatile pointers
+- SysTick-based delay using `target.rs` register definitions
+- Rising-edge button detection with debounce delay

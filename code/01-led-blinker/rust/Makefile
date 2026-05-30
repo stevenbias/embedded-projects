@@ -12,9 +12,6 @@ RENODE := renode
 RENODE_PLATFORM = ../renode/nucleo-f446re.repl
 RENODE_SCRIPT = ../renode/led-blinker.resc
 
-$(OBJS_DIR):
-	mkdir -p $@
-
 all: $(TARGET).bin size
 
 $(TARGET).elf:
