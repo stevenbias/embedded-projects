@@ -34,6 +34,8 @@ SRCS := $(SRC_DIR)/00-index.md \
         $(SRC_DIR)/00b-emulator-setup.md \
         $(SRC_DIR)/00c-gdb-survival-guide.md \
         $(SRC_DIR)/00d-linker-crt0-guide.md \
+        $(SRC_DIR)/00e-project-tooling.md \
+        $(SRC_DIR)/00f-ci-cd.md \
         $(SRC_DIR)/01-led-blinker.md \
         $(SRC_DIR)/02-uart-echo.md \
         $(SRC_DIR)/03-button-interrupts.md \

@@ -1,0 +1,60 @@
+# Doxyfile — Shared configuration for all C projects
+# Each project sets PROJECT_NAME, OUTPUT_DIRECTORY, INPUT via command-line:
+#   doxygen Doxyfile PROJECT_NAME=01-led-blinker OUTPUT_DIRECTORY=01-led-blinker/doc INPUT=01-led-blinker/c/src
+
+DOXYFILE_ENCODING      = UTF-8
+PROJECT_NAME           = "Embedded Projects"
+PROJECT_NUMBER         =
+OUTPUT_DIRECTORY       = doc/api
+CREATE_SUBDIRS         = NO
+FULL_PATH_NAMES        = NO
+
+# Extract all documented entities
+EXTRACT_ALL            = YES
+EXTRACT_PRIVATE        = YES
+EXTRACT_STATIC         = YES
+EXTRACT_LOCAL_CLASSES  = YES
+
+# Include sources in docs
+SOURCE_BROWSER         = YES
+INLINE_SOURCES         = NO
+STRIP_CODE_COMMENTS    = NO
+REFERENCED_BY_RELATION = YES
+REFERENCES_RELATION    = YES
+
+# Quiet mode
+QUIET                  = YES
+WARN_IF_UNDOCUMENTED   = YES
+WARN_IF_DOC_ERROR      = YES
+WARN_NO_PARAMDOC       = YES
+
+# Input
+INPUT                  = src
+FILE_PATTERNS          = *.c *.h
+RECURSIVE              = YES
+EXCLUDE                =
+
+# Preprocessing for STM32 defines
+ENABLE_PREPROCESSING   = YES
+MACRO_EXPANSION        = YES
+EXPAND_ONLY_PREDEF     = YES
+PREDEFINED             = __attribute__((x))=
+
+# Generate HTML
+GENERATE_LATEX         = NO
+GENERATE_HTML          = YES
+HTML_OUTPUT            = html
+HTML_EXTRA_STYLESHEET  =
+HTML_COLORSTYLE_HUE    = 220
+HTML_COLORSTYLE_SAT    = 100
+HTML_COLORSTYLE_GAMMA  = 80
+TREEVIEW_WIDTH         = 250
+
+# Dot/graph generation
+HAVE_DOT               = YES
+DOT_NUM_THREADS        = 0
+CALL_GRAPH             = YES
+CALLER_GRAPH           = YES
+INTERACTIVE_SVG        = YES
+DOT_GRAPH_MAX_NODES    = 50
+MAX_DOT_GRAPH_DEPTH    = 3
