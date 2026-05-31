@@ -154,16 +154,17 @@ At this pace, each project takes 1-2 weeks, and the full course spans approximat
 
 ---
 
-## Emulator Overview
+## Hardware & Emulation Targets
 
-You do **not** need physical hardware for most of this course. We use emulation extensively:
+This course targets the **NUCLEO-F446RE** board (STM32F446RE Cortex-M4F) as primary hardware. All projects can also run under emulation if you don't have the board:
 
-| Emulator | Primary Use | Strengths |
+| Target | Type | Notes |
 |---|---|---|
-| **QEMU** (`qemu-system-arm`) | Primary emulator for all projects | Excellent Cortex-M support, GDB integration, semihosting |
-| **Renode** | I2C sensors (Project 5), CAN bus (Project 9) | Peripheral simulation, bus analyzers, multi-node networks |
+| **NUCLEO-F446RE** | Physical board | Primary target — STM32F446RE Cortex-M4F, on-board ST-Link/V2-1 |
+| **QEMU** (`qemu-system-arm`) | Emulation (`netduinoplus2` machine) | Same STM32F4 family (STM32F405), excellent GDB integration, semihosting |
+| **Renode** | Emulation with peripheral models | I2C sensors (Project 5), CAN bus (Project 9), multi-node networks |
 
-> **Note:** Projects 4 (I2C) and 11 (CAN) benefit greatly from Renode's peripheral simulation. All other projects run fully in QEMU.
+> **Note:** Projects 4 (I2C) and 11 (CAN) benefit greatly from Renode's peripheral simulation. All other projects run fully under QEMU emulation of the `netduinoplus2` machine.
 
 See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for complete installation and configuration instructions.
 
@@ -211,8 +212,8 @@ See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for complete installat
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Complete peripheral reference for STM32F4 family
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Pin assignments, memory sizes, electrical characteristics
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Complete peripheral reference for STM32F4 family
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Pin assignments, memory sizes, electrical characteristics
 - [NUCLEO-F446RE Documentation](https://www.st.com/en/evaluation-tools/nucleo-f446re.html) — Board schematics, user manual, ST-Link/V2-1 details
 
 ### ARM Documentation

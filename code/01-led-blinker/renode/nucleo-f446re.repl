@@ -1,6 +1,9 @@
 using "platforms/cpus/stm32f4.repl"
 
-UserButton: Miscellaneous.Button @ gpioPortC
+// Placed on sysbus (not gpioPortC) so "UserButton Press" works directly
+// in the Renode monitor. The GPIO connection to PC13 is made via the
+// "-> gpioPortC@13" line regardless of bus placement.
+UserButton: Miscellaneous.Button @ sysbus
     -> gpioPortC@13
 
 UserLED: Miscellaneous.LED @ sysbus

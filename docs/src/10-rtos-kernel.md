@@ -6,7 +6,7 @@ project: 10
 
 # Project 10: RTOS Kernel (Minimal)
 
-In this project you will build a **preemptive RTOS kernel** from scratch for ARM Cortex-M4F microcontrollers (STM32F405). Unlike Project 7's cooperative scheduler — where tasks voluntarily yielded — this kernel will forcibly preempt lower-priority tasks when higher-priority ones become ready. You will implement mutexes with **priority inheritance**, binary and counting semaphores, message queues with ring-buffer storage, and a SysTick-driven time-slicing tick, in **C, Rust, Ada, and Zig**.
+In this project you will build a **preemptive RTOS kernel** from scratch for ARM Cortex-M4F microcontrollers (STM32F446RE). Unlike Project 7's cooperative scheduler — where tasks voluntarily yielded — this kernel will forcibly preempt lower-priority tasks when higher-priority ones become ready. You will implement mutexes with **priority inheritance**, binary and counting semaphores, message queues with ring-buffer storage, and a SysTick-driven time-slicing tick, in **C, Rust, Ada, and Zig**.
 
 This is the capstone concurrency project. Every production RTOS you will ever use (FreeRTOS, Zephyr, ThreadX, embOS) is built on exactly these primitives. By implementing them yourself, you will understand priority inversion, priority inheritance protocols, the difference between mutexes and semaphores, and how message queues avoid shared-memory races.
 
@@ -106,7 +106,7 @@ High address
 Low address
 ```
 
-> **Cortex-M4F FPU Note:** The STM32F405 has a hardware FPU (FPv4-SP-D16). The basic context switch above saves/restores R0-R11 only, which is sufficient for integer-only tasks. If any task uses floating-point operations, the FPU registers (S0-S15, FPSCR) must also be saved and restored. The FPU status register (FPCCR) controls lazy stacking — when enabled, the hardware automatically pushes S0-S15 and FPSCR on exception entry. For a production FPU-aware context switch, you would:
+> **Cortex-M4F FPU Note:** The STM32F446RE has a hardware FPU (FPv4-SP-D16). The basic context switch above saves/restores R0-R11 only, which is sufficient for integer-only tasks. If any task uses floating-point operations, the FPU registers (S0-S15, FPSCR) must also be saved and restored. The FPU status register (FPCCR) controls lazy stacking — when enabled, the hardware automatically pushes S0-S15 and FPSCR on exception entry. For a production FPU-aware context switch, you would:
 > 1. Check the EXC_RETURN[4] bit (FPCA) to determine if the task used the FPU
 > 2. If set, save/restore S0-S15 and FPSCR in addition to the integer registers
 > 3. Alternatively, disable lazy stacking and always save/restore FPU state
@@ -946,7 +946,7 @@ __attribute__((naked)) void PendSV_Handler(void) {
 #include "rtos.h"
 #include <stdio.h>
 
-/* GPIO for STM32F405 */
+/* GPIO for STM32F446RE */
 #define RCC_AHB1ENR   (*(volatile uint32_t *)0x40023830)
 #define GPIOA_MODER   (*(volatile uint32_t *)0x40020000)
 #define GPIOA_ODR     (*(volatile uint32_t *)0x40020014)
@@ -3016,11 +3016,11 @@ $11 = 4   # priority restored to original
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 14: SysTick (periodic tick source), Ch. 7: RCC (clock configuration)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 10: Interrupts and events (section 10.1.2 SysTick calibration value register), Ch. 6: RCC (clock configuration)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: PendSV exception (designed for context switching, lowest priority), FPU context (FPCCR lazy stacking, FPCA bit in EXC_RETURN, S0-S15 + FPSCR save/restore), Ch. 8: NVIC (priority grouping)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception entry/return (full context switch sequence), B1.5: PendSV (pended while other ISRs run), B3.2: Stack alignment (8-byte alignment requirement)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: ARMv7-M exception model (exception entry/return for full context switch sequence; PendSV pended while other ISRs run; CCR.STKALIGN in System Control Space for 8-byte stack alignment)
 - [ARM EABI Specification (AAPCS)](https://github.com/ARM-software/abi-aa/releases) — Register preservation rules for context switch
 
 ### Tools & Emulation

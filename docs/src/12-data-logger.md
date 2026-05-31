@@ -407,7 +407,7 @@ SdError sd_last_error(void);
 #include "sd_spi.h"
 #include <string.h>
 
-/* SPI1 on STM32F405: PA5=SCK, PA6=MISO, PA7=MOSI (AF5) */
+/* SPI1 on STM32F446RE: PA5=SCK, PA6=MISO, PA7=MOSI (AF5) */
 #define SPI1_CR1    (*(volatile uint32_t *)0x40013000)
 #define SPI1_SR     (*(volatile uint32_t *)0x40013004)
 #define SPI1_DR     (*(volatile uint32_t *)0x40013008)
@@ -3155,8 +3155,8 @@ xxd -l 512 sdcard.img | head -20
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 28: SPI (SD card SPI mode), Ch. 27: I2C (multi-sensor reads), Ch. 8: GPIO (pin configuration for SPI + I2C)
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Pin multiplexing
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 26: SPI (SD card SPI mode), Ch. 24: I2C (multi-sensor reads), Ch. 7: GPIO (pin configuration for SPI + I2C)
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Pin multiplexing
 
 ### External Specifications
 - [SD Specifications Part 1: Physical Layer Simplified](https://www.sdcard.org/downloads/pls/) — SD card SPI mode, CMD0-CMD59, R1/R3/R7 responses, data tokens (0xFE, 0xFF)

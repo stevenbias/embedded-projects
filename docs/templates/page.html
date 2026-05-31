@@ -74,10 +74,6 @@ $endfor$
 
 %%SIDEBAR%%
 
-      <div class="sidebar-section sidebar-toc" id="sidebar-toc" style="display: none;">
-        <h3>On This Page</h3>
-        <ul id="toc-list"></ul>
-      </div>
     </div>
   </nav>
 
@@ -91,6 +87,13 @@ $endfor$
         <input type="text" id="search-input" placeholder="Search docs…" autocomplete="off" aria-label="Search documentation">
         <div id="search-results" class="search-results" style="display: none;"></div>
       </div>
+      <button id="right-sidebar-toggle" aria-label="Table of contents" style="display: none;">
+        <span class="toc-icon">
+          <span class="toc-icon-bar"></span>
+          <span class="toc-icon-bar"></span>
+          <span class="toc-icon-bar"></span>
+        </span>
+      </button>
       <button id="theme-toggle" onclick="toggleTheme()" aria-label="Toggle theme">🌙</button>
     </header>
 
@@ -133,12 +136,26 @@ $endif$
     </footer>
   </div>
 
+  <aside id="right-sidebar">
+    <div class="right-sidebar-header">
+      <h3>On This Page</h3>
+      <button id="right-sidebar-close" class="sidebar-close-btn" aria-label="Close">&times;</button>
+    </div>
+    <ul id="toc-list"></ul>
+  </aside>
+  <div id="right-sidebar-overlay"></div>
+
   <script>
     const sidebar = document.getElementById('sidebar');
     const overlay = document.getElementById('sidebar-overlay');
     const toggleBtn = document.getElementById('sidebar-toggle');
     const closeBtn = document.getElementById('sidebar-close');
     const content = document.getElementById('content');
+
+    const rightSidebar = document.getElementById('right-sidebar');
+    const rightOverlay = document.getElementById('right-sidebar-overlay');
+    const rightToggleBtn = document.getElementById('right-sidebar-toggle');
+    const rightCloseBtn = document.getElementById('right-sidebar-close');
 
     function isDesktop() {
       return window.innerWidth >= 1024;
@@ -153,17 +170,46 @@ $endif$
         overlay.classList.toggle('active');
         content.classList.remove('sidebar-open');
       }
+      if (isDesktop()) {
+        localStorage.setItem('leftSidebarOpen', sidebar.classList.contains('open'));
+      }
     }
 
     function closeSidebar() {
       sidebar.classList.remove('open');
       overlay.classList.remove('active');
       content.classList.remove('sidebar-open');
+      localStorage.setItem('leftSidebarOpen', 'false');
+    }
+
+    function toggleRightSidebar() {
+      rightSidebar.classList.toggle('open');
+      if (isDesktop()) {
+        content.classList.toggle('right-sidebar-open');
+        rightOverlay.classList.remove('active');
+      } else {
+        rightOverlay.classList.toggle('active');
+        content.classList.remove('right-sidebar-open');
+      }
+      if (isDesktop()) {
+        localStorage.setItem('rightSidebarOpen', rightSidebar.classList.contains('open'));
+      }
+    }
+
+    function closeRightSidebar() {
+      rightSidebar.classList.remove('open');
+      rightOverlay.classList.remove('active');
+      content.classList.remove('right-sidebar-open');
+      localStorage.setItem('rightSidebarOpen', 'false');
     }
 
     toggleBtn.addEventListener('click', toggleSidebar);
     closeBtn.addEventListener('click', closeSidebar);
     overlay.addEventListener('click', closeSidebar);
+
+    if (rightToggleBtn) rightToggleBtn.addEventListener('click', toggleRightSidebar);
+    if (rightCloseBtn) rightCloseBtn.addEventListener('click', closeRightSidebar);
+    if (rightOverlay) rightOverlay.addEventListener('click', closeRightSidebar);
 
     sidebar.querySelectorAll('a').forEach(link => {
       link.addEventListener('click', () => {
@@ -174,12 +220,21 @@ $endif$
     window.addEventListener('resize', () => {
       if (isDesktop()) {
         overlay.classList.remove('active');
+        rightOverlay.classList.remove('active');
       }
     });
 
+    // Restore left sidebar state
+    const savedLeftState = localStorage.getItem('leftSidebarOpen');
+    if (savedLeftState === 'true' && isDesktop()) {
+      sidebar.classList.add('open');
+      content.classList.add('sidebar-open');
+    }
+
+    // Highlight current page in sidebar
     const currentPage = window.location.pathname.split('/').pop();
     if (currentPage) {
-      const links = document.querySelectorAll('#sidebar a:not(#toc-list a)');
+      const links = document.querySelectorAll('#sidebar a');
       links.forEach(link => {
         if (link.getAttribute('href') === currentPage) {
           link.classList.add('active');
@@ -191,14 +246,18 @@ $endif$
     const article = document.getElementById('main-article');
     if (article) {
       const headings = article.querySelectorAll('h2, h3');
-      const tocContainer = document.getElementById('sidebar-toc');
       const tocList = document.getElementById('toc-list');
 
-      if (headings.length > 0 && tocContainer && tocList) {
-        tocContainer.style.display = 'block';
+      if (headings.length > 0 && tocList) {
+        if (rightToggleBtn) rightToggleBtn.style.display = 'inline-flex';
+
+        const savedRightState = localStorage.getItem('rightSidebarOpen');
+        if (savedRightState === 'true' && isDesktop()) {
+          rightSidebar.classList.add('open');
+          content.classList.add('right-sidebar-open');
+        }
 
         headings.forEach((h, i) => {
-          // Ensure each heading has an id for anchor linking
           if (!h.id) {
             h.id = 'section-' + i;
           }
@@ -218,9 +277,9 @@ $endif$
             const target = document.getElementById(this.dataset.target);
             if (target) {
               target.scrollIntoView({ behavior: 'smooth', block: 'start' });
-              // Update URL hash without jumping
               history.pushState(null, null, '#' + this.dataset.target);
             }
+            if (!isDesktop()) closeRightSidebar();
           });
 
           li.appendChild(a);

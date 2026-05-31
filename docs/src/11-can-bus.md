@@ -10,7 +10,7 @@ In this project you will build a **CAN bus communication node** that reads OBD-I
 
 CAN (Controller Area Network) is the dominant in-vehicle networking protocol. Every modern car uses CAN for communication between ECUs (engine, transmission, ABS, airbag, instrument cluster). Understanding CAN at the register level is essential for automotive embedded development, diagnostics, and aftermarket tool development.
 
-This project targets the **STM32F405** (Cortex-M4F) on a **Netduino Plus 2** board.
+This project targets the **STM32F446RE** (Cortex-M4F) on a **NUCLEO-F446RE** board. The same code also runs under QEMU's `netduinoplus2` machine (which emulates an STM32F405 from the same family).
 
 ## What You'll Learn
 
@@ -785,7 +785,7 @@ void obd2_tick(void) {
 #include "obd2.h"
 #include <stdint.h>
 
-/* GPIO for LED (PA5 on Netduino Plus 2) */
+/* GPIO for LED (PA5 on NUCLEO-F446RE) */
 #define RCC_AHB1ENR_LED (*(volatile uint32_t *)0x40023830)
 #define GPIOA_MODER_LED (*(volatile uint32_t *)0x40020000)
 #define GPIOA_ODR_LED   (*(volatile uint32_t *)0x40020014)
@@ -2771,11 +2771,11 @@ renode --disable-gui can.resc
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 32: bxCAN (MCR, MSR, TSR, RF0R, IER, BTR bit timing, mailbox registers, FIFO, filter banks), Ch. 7: RCC (APB1ENR CAN1EN bit 25), Ch. 8: GPIO (AF9 for CAN on PA11/PA12)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 30: bxCAN (MCR, MSR, TSR, RF0R, IER, BTR bit timing, mailbox registers, FIFO, filter banks), Ch. 6: RCC (APB1ENR CAN1EN bit 25), Ch. 7: GPIO (AF9 for CAN on PA11/PA12)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — NVIC for CAN RX0 interrupt (IRQ 20)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Interrupt handling for CAN
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: ARMv7-M exception model (NVIC interrupt handling for CAN RX0 IRQ 20, interrupt priorities)
 
 ### CAN Standards
 - [ISO 11898-1:2015](https://www.iso.org/standard/63648.html) — CAN 2.0A/B frame format, bit timing, arbitration

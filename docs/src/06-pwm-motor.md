@@ -1700,9 +1700,9 @@ pub fn main() !void {
 arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O2 \
     -fno-common -ffunction-sections -fdata-sections \
     -Wall -Wextra -Werror \
-    -T stm32f405rg.ld \
+    -T stm32f446re.ld \
     -o pwm_motor.elf \
-    main.c pwm.c startup_stm32f405xx.c
+    main.c pwm.c startup_stm32f446xx.c
 
 arm-none-eabi-objcopy -O binary pwm_motor.elf pwm_motor.bin
 arm-none-eabi-size pwm_motor.elf
@@ -1849,12 +1849,12 @@ Hardware watchpoint 3: *0x4001002C
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 17: TIM1–TIM8 (CR1, CCMR, CCER, BDTR dead-time generator, PSC, ARR, CCR), Ch. 7: RCC (APB2ENR for TIM1)
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — TIM1 pin mapping (PA8 = TIM1_CH1, AF1)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 16: TIM1–TIM8 (CR1, CCMR, CCER, BDTR dead-time generator, PSC, ARR, CCR), Ch. 6: RCC (APB2ENR for TIM1)
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — TIM1 pin mapping (PA8 = TIM1_CH1, AF1)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — FPU for PID floating-point math
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — SysTick timer for ramp tick interrupts
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: ARMv7-M exception model (SysTick timer exception and interrupt handling for ramp tick generation)
 
 ### Tools & Emulation
 - [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html) — Timer PWM generation simulation

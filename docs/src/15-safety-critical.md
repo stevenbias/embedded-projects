@@ -1916,11 +1916,11 @@ Congratulations — you have completed the Embedded Development Mastery course. 
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 5: MPU (Memory Protection Unit for safety-critical memory isolation), Ch. 34: IWDG (watchdog for system health monitoring), Ch. 3: Flash interface (read protection levels)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 20: IWDG (watchdog for system health monitoring), Ch. 3: Flash interface (read protection levels)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 5: MPU (memory protection regions, access permissions), Ch. 3: Fault handlers (HardFault, MemManage, BusFault, UsageFault)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B3: Fault handling (configurable fault handlers, CFSR, HFSR, MMFAR, BFAR), B1.5: Priority masking (BASEPRI for selective interrupt masking)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B3.2: System Control Space (fault status registers CFSR, HFSR, MMFAR, BFAR; BASEPRI register for selective interrupt masking), B1.5: ARMv7-M exception model (priority masking, configurable fault handlers)
 
 ### Safety Standards
 - [MISRA C:2012 Guidelines](https://www.misra.org.uk/) — All 143 rules for safe C programming

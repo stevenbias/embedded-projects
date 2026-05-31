@@ -6,7 +6,7 @@ project: 7
 
 # Project 7: Cooperative Task Scheduler
 
-In this project you will build a cooperative multitasking scheduler from scratch for ARM Cortex-M4F microcontrollers (STM32F405). You will implement Task Control Blocks, context switching via inline assembly, priority-based scheduling, and a SysTick-driven system tick — in **C, Rust, Ada, and Zig**.
+In this project you will build a cooperative multitasking scheduler from scratch for ARM Cortex-M4F microcontrollers (STM32F446RE). You will implement Task Control Blocks, context switching via inline assembly, priority-based scheduling, and a SysTick-driven system tick — in **C, Rust, Ada, and Zig**.
 
 This is a foundational embedded systems project. Every RTOS you will ever use (FreeRTOS, Zephyr, ThreadX) is built on exactly these primitives. By implementing it yourself, you will understand what happens when a task yields, how the stack pointer moves, and why the PendSV exception exists.
 
@@ -432,7 +432,7 @@ __attribute__((naked)) void PendSV_Handler(void) {
 ```c
 #include "scheduler.h"
 
-/* GPIO registers for STM32F405 (LED on PA5) */
+/* GPIO registers for STM32F446RE (LED on PA5) */
 #define RCC_AHB1ENR   (*(volatile uint32_t *)0x40023830)
 #define GPIOA_MODER   (*(volatile uint32_t *)0x40020000)
 #define GPIOA_ODR     (*(volatile uint32_t *)0x40020014)
@@ -831,7 +831,7 @@ fn scheduler_start() {
     loop {}
 }
 
-/* GPIO for STM32F405 */
+/* GPIO for STM32F446RE */
 const RCC_AHB1ENR: *mut u32 = 0x4002_3830 as _;
 const GPIOA_MODER: *mut u32 = 0x4002_0000 as _;
 const GPIOA_ODR: *mut u32 = 0x4002_0014 as _;
@@ -1700,7 +1700,7 @@ export fn SysTick_Handler() void {
     }
 }
 
-// GPIO registers for STM32F405
+// GPIO registers for STM32F446RE
 const RCC_AHB1ENR = @as(*volatile u32, @ptrFromInt(0x40023830));
 const GPIOA_MODER = @as(*volatile u32, @ptrFromInt(0x40020000));
 const GPIOA_ODR = @as(*volatile u32, @ptrFromInt(0x40020014));
@@ -1913,12 +1913,12 @@ $3 = (uint32_t *) 0x200007c0
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 7: RCC (clock enable), SCB registers (SHPR3 for PendSV priority)
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — Memory map
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 6: RCC (clock enable), SCB registers (SHPR3 for PendSV priority)
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — Memory map
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Ch. 3: Programmer's Model (MSP vs PSP, CONTROL register, EXC_RETURN values 0xFFFFFFF9/0xFFFFFFFD), Ch. 4: Memory Model (stack alignment)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.4: Exception entry and return (hardware stacking of R0-R3, R12, LR, PC, xPSR), B1.5: PendSV exception (designed for context switching), SysTick timer
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: ARMv7-M exception model (exception entry and return with hardware stacking of R0-R3, R12, LR, PC, xPSR; PendSV exception designed for context switching; SysTick timer)
 - [ARM EABI Specification (AAPCS)](https://github.com/ARM-software/abi-aa/releases) — Calling convention, callee-saved registers (R4-R11)
 
 ### Tools & Emulation

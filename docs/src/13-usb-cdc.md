@@ -273,7 +273,7 @@ QEMU's USB emulation has important limitations for USB device development:
 - **No full enumeration testing**: QEMU's `-device usb-serial` or custom USB device support is limited. You can test the logic of your USB stack but not full host-driven enumeration.
 - **Register-level simulation**: QEMU simulates the USB peripheral registers (OTG_FS on STM32), but the host-side USB stack behavior may differ from real hardware.
 - **Best used for**: Testing descriptor tables, state machine transitions, and endpoint buffer management logic.
-- **USB OTG_FS not simulated**: The `netduinoplus2` machine in QEMU does not simulate the USB OTG_FS peripheral. For full USB testing, use real hardware (NUCLEO-F446RE) or Renode, which provides more complete STM32 USB peripheral emulation.
+- **USB OTG_FS not simulated**: The `netduinoplus2` machine in QEMU does not simulate the USB OTG_FS peripheral. For full USB testing, use the NUCLEO-F446RE as the primary platform, or Renode for more complete STM32 USB peripheral emulation.
 
 > **Warning:** For production USB device testing, always validate on real hardware. QEMU is useful for catching descriptor errors and state machine bugs, but cannot replace testing with a real USB host.
 
@@ -1299,11 +1299,11 @@ arm-none-eabi-gcc \
     -fno-common -ffunction-sections -fdata-sections \
     -nostdlib \
     -I../../src \
-    -T ../../src/stm32f405rg.ld \
+    -T ../../src/stm32f446re.ld \
     ../../src/main.c \
     ../../src/usb_device.c \
     ../../src/usb_descriptors.c \
-    ../../src/startup_stm32f405xx.s \
+    ../../src/startup_stm32f446xx.s \
     -o usb_cdc.elf
 
 # Generate binary and hex
@@ -1326,7 +1326,7 @@ qemu-system-arm \
     -D qemu.log
 ```
 
-> **Note:** USB OTG_FS is not simulated in QEMU's `netduinoplus2` machine. The QEMU commands above will boot the firmware but USB enumeration cannot be tested. For full USB testing, use real hardware (NUCLEO-F446RE) or Renode, which provides more complete STM32 USB peripheral emulation.
+> **Note:** USB OTG_FS is not simulated in QEMU's `netduinoplus2` machine. The QEMU commands above will boot the firmware but USB enumeration cannot be tested. For full USB testing, use the NUCLEO-F446RE as the primary platform, or Renode for more complete STM32 USB peripheral emulation.
 
 ## Implementation: Rust
 
@@ -1345,7 +1345,7 @@ edition = "2021"
 cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7"
 panic-halt = "0.2"
-stm32f4xx-hal = { version = "0.21", features = ["stm32f405"] }
+stm32f4xx-hal = { version = "0.21", features = ["stm32f446"] }
 usb-device = "0.3"
 usbd-serial = "0.2"
 heapless = "0.8"
@@ -1559,7 +1559,7 @@ qemu-system-arm \
     -D qemu_rust.log
 ```
 
-> **Note:** USB OTG_FS is not simulated in QEMU's `netduinoplus2` machine. For full USB enumeration testing, use real hardware (NUCLEO-F446RE) or Renode.
+> **Note:** USB OTG_FS is not simulated in QEMU's `netduinoplus2` machine. For full USB enumeration testing, use the NUCLEO-F446RE as the primary platform, or Renode.
 
 ## Implementation: Ada
 
@@ -2008,7 +2008,7 @@ project USB_CDC is
       for Default_Switches ("Ada") use (
          "-mcpu=cortex-m4", "-mthumb",
          "-mfloat-abi=hard", "-mfpu=fpv4-sp-d16",
-          "-T", "stm32f405rg.ld",
+          "-T", "stm32f446re.ld",
          "-nostartfiles"
       );
    end Linker;
@@ -2033,7 +2033,7 @@ qemu-system-arm \
     -D qemu_ada.log
 ```
 
-> **Note:** USB OTG_FS is not simulated in QEMU's `netduinoplus2` machine. For full USB enumeration testing, use real hardware (NUCLEO-F446RE) or Renode.
+> **Note:** USB OTG_FS is not simulated in QEMU's `netduinoplus2` machine. For full USB enumeration testing, use the NUCLEO-F446RE as the primary platform, or Renode.
 
 ## Implementation: Zig
 
@@ -2628,7 +2628,7 @@ qemu-system-arm \
     -D qemu_zig.log
 ```
 
-> **Note:** USB OTG_FS is not simulated in QEMU's `netduinoplus2` machine. For full USB enumeration testing, use real hardware (NUCLEO-F446RE) or Renode.
+> **Note:** USB OTG_FS is not simulated in QEMU's `netduinoplus2` machine. For full USB enumeration testing, use the NUCLEO-F446RE as the primary platform, or Renode.
 
 ## Verification
 
@@ -2659,7 +2659,7 @@ When running on real hardware or QEMU, monitor the debug UART for state machine 
 
 ### Testing on Real Hardware
 
-For full USB enumeration testing, use a Netduino Plus 2 or NUCLEO-F446RE:
+For full USB enumeration testing, use a NUCLEO-F446RE:
 
 ```bash
 # Flash with OpenOCD
@@ -2677,7 +2677,7 @@ screen /dev/ttyACM0 115200
 picocom -b 115200 /dev/ttyACM0
 ```
 
-> **Warning:** USB enumeration requires proper 5V VBUS detection. On the Netduino Plus 2, ensure the USB connector is properly wired and the board is powered. Self-powered devices should disable VBUS sensing in the OTG_FS configuration.
+> **Warning:** USB enumeration requires proper 5V VBUS detection. On the NUCLEO-F446RE, ensure the USB connector is properly wired and the board is powered. Self-powered devices should disable VBUS sensing in the OTG_FS configuration.
 
 ## What You Learned
 
@@ -2720,13 +2720,13 @@ picocom -b 115200 /dev/ttyACM0
 - [ ] CDC-ACM class request handlers (SetLineCoding, GetLineCoding, SetControlLineState)
 - [ ] Bulk IN/OUT endpoint data transfer with ring buffers
 - [ ] UART debug output showing state transitions
-- [ ] Successful enumeration on real hardware (Netduino Plus 2)
+- [ ] Successful enumeration on real hardware
 - [ ] Bidirectional serial communication via `/dev/ttyACM0` or `COMx`
 
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 33: USB OTG FS (GOTGCTL, GAHBCFG, GUSBCFG, GRSTCTL, GINTSTS/GINTMSK, GRXSTSR/GRXSTSP, endpoint registers, FIFO), Ch. 7: RCC (AHB2ENR OTGFSEN), Ch. 8: GPIO (AF10 for USB on PA11/PA12)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 31: USB OTG FS (GOTGCTL, GAHBCFG, GUSBCFG, GRSTCTL, GINTSTS/GINTMSK, GRXSTSR/GRXSTSP, endpoint registers, FIFO), Ch. 6: RCC (AHB2ENR OTGFSEN), Ch. 7: GPIO (AF10 for USB on PA11/PA12)
 - [NUCLEO-F446RE Documentation](https://www.st.com/en/evaluation-tools/nucleo-f446re.html) — USB OTG FS connector on NUCLEO-F446RE
 
 ### USB Specifications

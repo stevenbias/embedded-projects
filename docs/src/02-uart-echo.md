@@ -26,15 +26,15 @@ You will implement a UART echo server that receives characters and immediately t
 
 | Property        | Value                              |
 |-----------------|------------------------------------|
-| Board           | Netduino Plus 2 (QEMU) / NUCLEO-F446RE (HW) |
-| MCU             | STM32F405 / STM32F446              |
+| Board           | NUCLEO-F446RE (also runs under QEMU's netduinoplus2) |
+| MCU             | STM32F446RE              |
 | Core            | ARM Cortex-M4F                     |
 | UART Peripheral | USART2                             |
 | TX Pin          | PA2 (Alternate Function 7)         |
 | RX Pin          | PA3 (Alternate Function 7)         |
-| QEMU Machine    | `netduinoplus2`                    |
+| QEMU Machine    | `netduinoplus2` (emulates STM32F405, same F4 family) |
 
-QEMU's `netduinoplus2` machine connects USART2 to the host's stdin/stdout when using `-nographic` or `-serial mon:stdio`.
+QEMU's `netduinoplus2` machine, which emulates the STM32F405 from the same family, connects USART2 to the host's stdin/stdout when using `-nographic` or `-serial mon:stdio`.
 
 ## UART Fundamentals
 
@@ -136,7 +136,7 @@ The linker script and startup assembly are identical to Project 1. Only `main.c`
 ### `main.c`
 
 ```c
-/* main.c — UART echo server for STM32F405 (polling) */
+/* main.c — UART echo server for STM32F446RE (polling) */
 
 #include <stdint.h>
 
@@ -245,7 +245,7 @@ int main(void)
 ### `Makefile`
 
 ```makefile
-# Makefile — UART Echo Server (C / STM32F405)
+# Makefile — UART Echo Server (C / STM32F446RE)
 
 CC      = arm-none-eabi-gcc
 OBJCOPY = arm-none-eabi-objcopy
@@ -780,7 +780,7 @@ pub fn build(b: *std.Build) void {
 ### `src/main.zig`
 
 ```zig
-// main.zig — UART echo server for STM32F405 (polling with error unions)
+// main.zig — UART echo server for STM32F446RE (polling with error unions)
 
 const std = @import("std");
 
@@ -972,12 +972,12 @@ Your MCU can now talk to the outside world. In [Project 3: Button Interrupts & D
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 30: USART (BRR, SR, CR1, DR), Ch. 8: GPIO (AFRL, alternate function AF7)
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 25: USART (BRR, SR, CR1, DR), Ch. 7: GPIO (AFRL, alternate function AF7)
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — NVIC interrupt enable for USART2 (IRQ 38), exception priorities
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/)
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — B1.5: ARMv7-M exception model (NVIC interrupt handling for USART2 IRQ 38)
 
 ### Tools & Emulation
 - [QEMU STM32 Documentation](https://www.qemu.org/docs/master/system/arm/stm32.html)

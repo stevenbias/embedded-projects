@@ -671,7 +671,7 @@ w25q_error_t w25q_read_verified(w25q_handle_t *dev, uint32_t addr,
 #### Hardware Initialization (`hw_init.c`)
 
 ```c
-/* STM32F405 GPIO + RCC initialization for SPI1 */
+/* STM32F446RE GPIO + RCC initialization for SPI1 */
 
 /* RCC base address (STM32F4) */
 #define RCC_BASE        0x40023800UL
@@ -726,13 +726,13 @@ void hw_init(void) {
 }
 ```
 
-#### Linker Script (`stm32f405.ld`)
+#### Linker Script (`stm32f446re.ld`)
 
 ```ld
-/* STM32F405RG — 1024K flash, 128K RAM */
+/* STM32F446RE — 512K flash, 128K RAM */
 MEMORY
 {
-    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 1024K
+    FLASH (rx)  : ORIGIN = 0x08000000, LENGTH = 512K
     RAM   (rwx) : ORIGIN = 0x20000000, LENGTH = 128K
 }
 
@@ -764,7 +764,7 @@ SECTIONS
 }
 ```
 
-#### Startup Assembly (`startup_stm32f405xx.s`)
+#### Startup Assembly (`startup_stm32f446xx.s`)
 
 ```asm
     .syntax unified
@@ -2058,9 +2058,9 @@ pub fn main() !void {
 arm-none-eabi-gcc -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -O2 \
     -fno-common -ffunction-sections -fdata-sections \
     -Wall -Wextra -Werror \
-    -T stm32f405.ld \
+    -T stm32f446re.ld \
     -o w25q.elf \
-    main.c spi.c w25q.c crc32.c startup_stm32f405xx.c
+    main.c spi.c w25q.c crc32.c startup_stm32f446xx.c
 
 arm-none-eabi-objcopy -O binary w25q.elf w25q.bin
 arm-none-eabi-size w25q.elf
@@ -2185,12 +2185,12 @@ Expected SPI transaction trace:
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 28: SPI (CR1, CR2, SR, DR), Ch. 8: GPIO (AF5 for SPI1 on PA5/PA6/PA7)
-- [STM32F405/407 Datasheet](https://www.st.com/resource/en/datasheet/stm32f405rg.pdf) — SPI pin assignments, alternate function mapping
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 26: SPI (CR1, CR2, SR, DR), Ch. 7: GPIO (AF5 for SPI1 on PA5/PA6/PA7)
+- [STM32F446RE Datasheet](https://www.st.com/resource/en/datasheet/stm32f446re.pdf) — SPI pin assignments, alternate function mapping
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — Memory model for SPI register access
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Memory barriers for SPI synchronization
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — A3.5: Memory types and attributes (memory order model for SPI register access), B5.2: System instruction descriptions (DMB/DSB/ISB barrier instructions)
 
 ### Flash Memory Documentation
 - [W25Q64JV Datasheet (Winbond)](https://www.winbond.com/resource-files/w25q64jv%20revj%2003272018%20plus.pdf) — Command set (0x03, 0x02, 0x20, 0x9F, 0x06, 0x05), page/sector/block geometry, JEDEC ID

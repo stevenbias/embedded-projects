@@ -931,9 +931,9 @@ arm-none-eabi-gcc \
     -O2 -Wall -Wextra -Wpedantic -Wconversion \
     -fno-common -ffunction-sections -fdata-sections \
     -nostdlib \
-    -T stm32f405rg.ld \
+    -T stm32f446re.ld \
     main.c pid_controller.c fault_detection.c watchdog.c \
-    startup_stm32f405xx.s \
+    startup_stm32f446xx.s \
     -o motor_control.elf
 
 # Generate binary
@@ -969,7 +969,7 @@ edition = "2021"
 cortex-m = { version = "0.7", features = ["critical-section-single-core"] }
 cortex-m-rt = "0.7"
 panic-halt = "0.2"
-stm32f4xx-hal = { version = "0.21", features = ["stm32f405"] }
+stm32f4xx-hal = { version = "0.21", features = ["stm32f446"] }
 embedded-hal = "1.0"
 heapless = "0.8"
 num-traits = { version = "0.2", default-features = false }
@@ -2353,11 +2353,11 @@ gcc -O2 -o test_pid test_pid.c pid_controller.c -lm
 ## References
 
 ### STMicroelectronics Documentation
-- [STM32F4 Reference Manual (RM0090)](https://www.st.com/resource/en/reference_manual/dm00031020-stm32f405-415-stm32f407-417-stm32f427-437-and-stm32f429-439-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 17: TIM1–TIM8 (PWM generation for motor control), Ch. 18: ADC (current/voltage/temperature sensing), Ch. 34: IWDG (KR, PR, RLR, SR — independent watchdog for fault detection), Ch. 7: RCC (clock configuration)
+- [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 16: TIM1–TIM8 (PWM generation for motor control), Ch. 13: ADC (current/voltage/temperature sensing), Ch. 20: IWDG (KR, PR, RLR, SR — independent watchdog for fault detection), Ch. 6: RCC (clock configuration)
 
 ### ARM Documentation
 - [Cortex-M4 Technical Reference Manual](https://developer.arm.com/documentation/ddi0439/latest/) — FPU (FPv4-SP-D16 for floating-point PID), Ch. 4: Memory model (fixed-point arithmetic considerations)
-- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — IWDG-like watchdog behavior, fault handling
+- [ARMv7-M Architecture Reference Manual](https://developer.arm.com/documentation/ddi0403/latest/) — Exception model for fault handling (HardFault, NMI)
 - [ARM EABI Specification](https://github.com/ARM-software/abi-aa/releases) — Fixed-point Q15.16 arithmetic conventions
 
 ### Standards
