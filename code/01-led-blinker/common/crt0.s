@@ -17,6 +17,7 @@
 .section .text.Reset_Handler, "ax", %progbits
 .thumb_func
 Reset_Handler:
+    ldr sp, =_stack_top          /* Initialize SP from vector table */
     ldr r0, =_sdata             /* Start of .data in RAM */
     ldr r1, =_edata             /* End of .data in RAM */
     ldr r2, =_lma_sdata         /* Start of .data in Flash */
