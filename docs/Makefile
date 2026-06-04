@@ -48,7 +48,8 @@ SRCS := $(SRC_DIR)/00-index.md \
         $(SRC_DIR)/12-data-logger.md \
         $(SRC_DIR)/13-usb-cdc.md \
         $(SRC_DIR)/14-pid-motor.md \
-        $(SRC_DIR)/15-safety-critical.md
+        $(SRC_DIR)/15-safety-critical.md \
+        $(SRC_DIR)/A01-compiler-linker-switches.md
 
 # Combined source for single-document outputs
 COMBINED := $(OUTPUT_DIR)/combined.md

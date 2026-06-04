@@ -10,6 +10,7 @@ PHASES = {
     3: "Phase 3: Architecture",
     4: "Phase 4: Real-Time",
     5: "Phase 5: Expert",
+    6: "Reference",
 }
 
 def html_escape(s):

@@ -219,7 +219,7 @@ cd code/01-led-blinker/c
 make clean all
 ```
 
-Output: `led-blinker.elf` — **240 bytes** (`.text`).
+Output: `led-blinker.elf` (see [Binary Size Comparison](#binary-size-comparison) for sizes).
 
 ## Language Notes: Rust
 
@@ -352,14 +352,28 @@ cd code/01-led-blinker/rust
 make clean all
 ```
 
-Output: `led-blinker.elf` — **256 bytes** (20 bytes larger than C due to the mandatory panic handler stub).
+Output: `led-blinker.elf` (see [Binary Size Comparison](#binary-size-comparison) for sizes).
 
 ## Language Notes: Ada
 
-> **Status:** Placeholder — implementation coming soon.
-> Project scaffold: [`code/01-led-blinker/ada/`](../code/01-led-blinker/ada/)
+> **Full source:** [`code/01-led-blinker/ada/`](../code/01-led-blinker/ada/)
 
 Ada uses `pragma Volatile` for hardware registers, modular types (`mod 2**32`) for unsigned wraparound arithmetic, and `System.Address` for memory-mapped I/O. The Light runtime handles `.data`/`.bss` initialization.
+
+### Binary Size Comparison
+
+| Language | .text | .bss | Total | Difference |
+|----------|-------|------|-------|------------|
+| C        | 244   | 0    | 244   | baseline   |
+| Rust     | 280   | 0    | 280   | +36 bytes (+15%) |
+| Ada      | 280   | 4    | 284   | +40 bytes (+16%) |
+
+**Why are Rust and Ada larger than C?**
+
+- **Rust** — Mandatory panic handler stub and lang items (+36 bytes)
+- **Ada** — Elaboration mechanism (`adainit`), GNAT metadata in `.rodata`, and elaboration flag in `.bss` (+40 bytes)
+
+> **Deep dive:** See [Compiler & Linker Switches](A01-compiler-linker-switches.md) for details on `-flto` and other optimization flags.
 
 ## Language Notes: Zig
 
@@ -443,7 +457,7 @@ arm-none-eabi-gdb -ex "target remote :3333" -ex "break main" -ex "continue" led-
 - [ ] Button press toggles to fast blink (100ms period)
 - [ ] Another press returns to slow blink
 - [ ] Verify using Renode: `logLevel -1 UserLED` + `UserButton Press`/`Release`
-- [ ] C binary: 240 bytes, Rust binary: 256 bytes
+- [ ] Verify binary sizes match [Binary Size Comparison](#binary-size-comparison) table
 - [ ] Understand why peripheral clocks must be enabled before register access
 - [ ] Understand output (MODER, ODR) vs input (MODER, IDR) GPIO configuration
 
@@ -457,7 +471,7 @@ arm-none-eabi-gdb -ex "target remote :3333" -ex "break main" -ex "continue" led-
 | **Startup code**         | Shared `crt0.s`                | Shared `crt0.s`                       |
 | **No-std declaration**   | `-ffreestanding -nostdlib`     | `#![no_std] #![no_main]`              |
 | **Infinite loop**        | `while (1) {}`                 | `loop {}` (type `!`)                  |
-| **Binary size**          | 240 bytes                      | 256 bytes                             |
+| **Binary size**          | See [comparison table](#binary-size-comparison) | See [comparison table](#binary-size-comparison) |
 
 ## Next Steps
 
