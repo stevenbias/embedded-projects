@@ -6,7 +6,7 @@ project: 1
 
 # Project 1: LED Blinker — Your First Bare Metal Program
 
-## Introduction
+## 1. Introduction
 
 The LED blinker is the "Hello, World" of embedded development — but on bare metal, there is no standard library, no operating system, and no `main` function that just works. Everything from the moment the processor comes out of reset is your responsibility.
 
@@ -21,14 +21,37 @@ This project teaches you the foundational mechanics of bare-metal programming:
 - How to configure the system clock
 - How to read a button (GPIO input) and control an LED (GPIO output)
 
-You will implement the same LED blinker with **button speed control** in **C** and **Rust** (Ada and Zig placeholders), each targeting the STM32F405 (Cortex-M4F) running under QEMU's `netduinoplus2` machine. The same code also runs on the NUCLEO-F446RE (STM32F446) with no changes.
+You will implement the same LED blinker with **button speed control** in **C**, **Rust**, and **Ada** (Zig placeholder), each targeting the STM32F446RE (Cortex-M4F). The code runs on both the physical NUCLEO-F446RE board and QEMU's `netduinoplus2` machine (which emulates the STM32F405, a compatible chip from the same STM32F4 family).
+
+### Why Bare Metal First?
+
+This project deliberately implements all languages (C, Rust, Ada) at the **lowest level possible** — raw pointers, manual volatile access, no abstractions. The goal is to master the fundamentals:
+
+- **C**: The baseline — direct register access via `volatile` pointers
+- **Rust**: Raw `*mut u32` pointers with `read_volatile`/`write_volatile` — no PAC crates, no HAL, no `cortex-m-rt`
+- **Ada**: Manual `Address` and `Volatile` aspects — no higher-level bindings
+
+This approach means we **do not yet benefit** from language-specific safety features:
+- Rust's ownership model and type-safe peripheral access (PAC/HAL crates)
+- Ada's SPARK contracts, Ravenscar profile, and protected objects
+
+**Why?** By staying close to C, you understand exactly what happens at the hardware level. There is no magic, no hidden abstractions. You control every bit.
+
+In subsequent projects, we will progressively introduce higher-level features:
+- **Project 2**: Type-safe register access patterns
+- **Project 3**: Interrupt handlers with language-specific idioms
+- **Project 7+**: Concurrency with Rust's `Send`/`Sync` and Ada's Ravenscar
+
+> **Philosophy:** Master the foundation first, then build abstractions you understand.
 
 > **Reference Implementation:** The complete, tested code is in [`code/01-led-blinker/`](../code/01-led-blinker/).
-> This page explains each technique in detail with annotated snippets; the source files contain clean, focused implementations.
+> This page explains key concepts with focused snippets; refer to the source files for complete implementations.
 
 > **Tip:** If you already know one language, skim its section and focus on the others. The real value is in comparing approaches.
 
-## Target Hardware
+---
+
+## 2. Target Hardware
 
 | Property        | Value                              |
 |-----------------|------------------------------------|
@@ -48,9 +71,11 @@ To implement button-controlled blinking:
 3. Configure PC13 as input via `GPIOC_MODER`
 4. Read `GPIOC_IDR` to detect button presses, toggle `GPIOA_ODR` with variable delay
 
-## Key Concepts
+---
 
-### Startup Code
+## 3. Key Concepts
+
+### 3.1 Startup Code
 
 When a Cortex-M processor resets, it reads two 32-bit values from address `0x00000000`:
 
@@ -65,13 +90,13 @@ This pair is the first entry in the **vector table**. After the reset handler ru
 
 > **Deep dive:** See [Linker Scripts & crt0.s Guide](00d-linker-crt0-guide.md) for a complete walkthrough of startup code, ELF sections, and the LMA vs VMA split.
 
-### Vector Table & Thumb State
+### 3.2 Vector Table & Thumb State
 
 The vector table is an array of function pointers at a known address. For this project we only need the first two entries (initial MSP and Reset Handler).
 
 **Critical:** All exception handler addresses in the vector table must have bit 0 (LSB) set to 1. Cortex-M4 only supports Thumb instructions; if LSB=0, the processor faults immediately (Cortex-M4 Technical Reference Manual §2.3.4). The `.thumb_func` directive in `crt0.s` tells the assembler to set this bit automatically — the linker script is not involved.
 
-### Linker Script
+### 3.3 Linker Script
 
 The linker script tells the linker where to place each section in the target's memory map. A minimal script defines:
 
@@ -83,15 +108,17 @@ Symbols exported by the linker script (like `_sdata`, `_sbss`, `_stack_top`) for
 
 > **Deep dive:** See [Linker Scripts & crt0.s Guide](00d-linker-crt0-guide.md) for detailed section breakdowns and LMA/VMA semantics.
 
-### Memory-Mapped I/O
+### 3.4 Memory-Mapped I/O
 
 On ARM Cortex-M, all peripherals are accessed through memory-mapped registers. Writing to a specific address triggers hardware behavior — there is no `ioctl` or syscall. The `volatile` qualifier is critical: the compiler must not optimize away reads or writes to these addresses.
 
-### Clock Configuration
+### 3.5 Clock Configuration
 
 The STM32F4 starts up running on its internal 16 MHz HSI oscillator. GPIO peripherals live on the AHB1 bus and are **disabled by default** to save power. Before accessing any GPIO register, you must enable its clock via the RCC (Reset and Clock Control) peripheral.
 
-## Key Registers
+---
+
+## 4. Key Registers
 
 | Register         | Address      | Description                                    |
 |------------------|--------------|------------------------------------------------|
@@ -101,11 +128,9 @@ The STM32F4 starts up running on its internal 16 MHz HSI oscillator. GPIO periph
 | `GPIOC_MODER`    | `0x40020800` | GPIOC mode register. 2 bits per pin. `00` = input |
 | `GPIOC_IDR`      | `0x40020810` | GPIOC input data register. Read pin state |
 
-> **Details:** Bit-level layouts and register flag definitions are documented in the source header [`code/01-led-blinker/c/inc/main.h`](../code/01-led-blinker/c/inc/main.h).
+---
 
-## Language Notes: C
-
-> **Full source:** [`code/01-led-blinker/c/`](../code/01-led-blinker/c/)
+## 5. Language Notes: C
 
 ```
 code/01-led-blinker/c/
@@ -118,42 +143,31 @@ Shared startup from [`common/`](../code/01-led-blinker/common/):
 - `linker.ld` — memory layout
 - `crt0.s` — C runtime startup (copies `.data`, zeroes `.bss`, calls `main()`)
 
-### Register Access (main.h)
+### 5.1 Volatile Register Access
 
-Each peripheral register is a `volatile` pointer to a fixed address. The `volatile` qualifier is critical: it prevents the compiler from caching reads or optimizing away writes — without it, your hardware may never see the writes.
+Each peripheral register is defined as a `volatile` pointer to a fixed address. The `volatile` qualifier prevents the compiler from caching reads or optimizing away writes:
 
 ```c
 #define RCC_AHB1ENR (*(volatile uint32_t *)(0x40023800U + 0x30U))
 #define GPIOA_MODER (*(volatile uint32_t *)(0x40020000U + 0x00U))
-#define GPIOA_ODR   (*(volatile uint32_t *)(0x40020000U + 0x14U))
-#define GPIOC_MODER (*(volatile uint32_t *)(0x40020800U + 0x00U))
-#define GPIOC_IDR   (*(volatile uint32_t *)(0x40020800U + 0x10U))
 ```
 
-The header also defines bit-position constants (`RCC_GPIOA_CLK_EN`, `GPIO_MODE_OUTPUT`, `SYSTICK_ENABLE`) — always prefer named constants over magic numbers, even in bare-metal code.
+Always use named constants (`RCC_GPIOA_CLK_EN`, `GPIO_MODE_OUTPUT`) instead of magic numbers.
 
-### GPIO Initialization
+### 5.2 Clear-Then-Set GPIO Pattern
 
-Before touching any GPIO register, enable the peripheral clock. The STM32F4 starts with all GPIO clocks disabled. Writes to a disabled peripheral are silently ignored.
+Each pin's mode uses 2 bits in MODER. The clear-then-set idiom ensures only target bits are modified:
 
 ```c
-static void led_init(void) {
-  RCC_AHB1ENR |= RCC_GPIOA_CLK_EN;                     /* Enable GPIOA clock */
-  GPIOA_MODER &= ~(GPIO_MODE_MASK << (LED_PIN * 2));   /* Clear mode bits   */
-  GPIOA_MODER |= (GPIO_MODE_OUTPUT << (LED_PIN * 2));   /* Set to output     */
-}
-
-static void button_init(void) {
-  RCC_AHB1ENR |= RCC_GPIOC_CLK_EN;                     /* Enable GPIOC clock   */
-  GPIOC_MODER &= ~(GPIO_MODE_MASK << (BUTTON_PIN * 2)); /* Input mode (default) */
-}
+GPIOA_MODER &= ~(GPIO_MODE_MASK << (LED_PIN * 2));   /* Clear mode bits */
+GPIOA_MODER |= (GPIO_MODE_OUTPUT << (LED_PIN * 2));  /* Set to output   */
 ```
 
-**Why clear then set?** Each pin's mode uses 2 bits in MODER. Writing `|=` without clearing first would corrupt adjacent bits if the previous value was non-zero. The clear-then-set idiom is safe: it only touches the target bits.
+Writing `|=` without clearing first would corrupt adjacent bits if the previous value was non-zero.
 
-### Button Reading with Active-LOW Invert
+### 5.3 Active-LOW Button Reading
 
-The NUCLEO button connects PC13 to ground when pressed (active LOW). An external pull-up holds it HIGH when released.
+The NUCLEO button connects PC13 to ground when pressed. Shift, mask, and invert:
 
 ```c
 static bool button_is_pressed(void) {
@@ -161,69 +175,46 @@ static bool button_is_pressed(void) {
 }
 ```
 
-**What this does:** shift the IDR value right by 13 (moving bit 13 to position 0), mask with `1U` to isolate it, then invert so pressed = `true`. Without the `& 1U` mask, higher bits in the shift result could produce false positives on some hardware configurations.
+### 5.4 SysTick Timing
 
-### Precise Delays with SysTick
-
-SysTick is a 24-bit down-counter built into every Cortex-M core. It decrements on each processor cycle, providing predictable timing.
+SysTick is a 24-bit down-counter (max ~1,048 ms at 16 MHz). Program reload, start, wait for flag, stop:
 
 ```c
-void delay_ms(uint32_t ms) {
-  uint32_t cycles = (HSI_CLOCK_HZ / 1000U) * ms;       /* 16K cycles/ms */
-  SYSTICK_LOAD = cycles & SYSTICK_RELOAD_MASK;          /* 24-bit reload  */
-  SYSTICK_VAL = 0;                                      /* Clear counter  */
-  SYSTICK_CTRL = SYSTICK_ENABLE | SYSTICK_CLKSRC_CPU;   /* Start: cpu clk */
-
-  while ((SYSTICK_CTRL & SYSTICK_COUNTFLAG) == 0) {}    /* Wait for zero  */
-
-  SYSTICK_CTRL = 0;                                     /* Stop timer     */
-}
+SYSTICK_LOAD = cycles & SYSTICK_RELOAD_MASK;
+SYSTICK_VAL = 0;
+SYSTICK_CTRL = SYSTICK_ENABLE | SYSTICK_CLKSRC_CPU;
+while ((SYSTICK_CTRL & SYSTICK_COUNTFLAG) == 0) {}
+SYSTICK_CTRL = 0;
 ```
 
-At 16 MHz, the 24-bit counter allows single-shot delays up to ~1,048 ms. Longer delays require looping.
+### 5.5 Edge Detection
 
-### Edge Detection in the Main Loop
-
-Without edge detection, holding the button would toggle the blink speed dozens of times per iteration. The solution: track the previous button state and trigger only on the rising edge.
+Track previous button state to trigger only on rising edge (prevents multiple toggles while held):
 
 ```c
-int main(void) {
-  led_init();
-  button_init();
-
-  bool blink_fast = 0;
-  bool prev_button = 0;
-
-  while (1) {
-    bool curr_button = button_is_pressed();
-
-    /* Rising edge: was released (0), now pressed (1) */
-    if (curr_button && !prev_button) {
-      blink_fast = !blink_fast;
-      delay_ms(200);                        /* Skip contact bounce */
-    }
-    prev_button = curr_button;
-
-    led_toggle();
-    delay_ms(blink_fast ? BLINK_FAST_MS : BLINK_SLOW_MS);
-  }
+if (curr_button && !prev_button) {
+  blink_fast = !blink_fast;
+  delay_ms(200);  /* Crude debounce */
 }
+prev_button = curr_button;
 ```
 
-**On debouncing:** Mechanical switches bounce for 5–50 ms. The 200 ms delay after each press is a crude approach — see [Project 3: Button Interrupts & Debouncing](03-button-interrupts.md) for proper state-machine debouncing.
+See [Project 3: Button Interrupts & Debouncing](03-button-interrupts.md) for proper state-machine debouncing.
 
-### Build
+### 5.6 Build
 
 ```bash
 cd code/01-led-blinker/c
 make clean all
 ```
 
-Output: `led-blinker.elf` (see [Binary Size Comparison](#binary-size-comparison) for sizes).
+> **Full source:**
+> - [`inc/main.h`](../code/01-led-blinker/c/inc/main.h) — Register definitions and constants
+> - [`src/main.c`](../code/01-led-blinker/c/src/main.c) — Complete application logic
 
-## Language Notes: Rust
+---
 
-> **Full source:** [`code/01-led-blinker/rust/`](../code/01-led-blinker/rust/)
+## 6. Language Notes: Rust
 
 ```
 code/01-led-blinker/rust/
@@ -237,76 +228,40 @@ code/01-led-blinker/rust/
     └── time.rs         # SysTick delay function
 ```
 
-### Bare Metal Without Crates
+### 6.1 Bare Metal Without Crates
 
-Unlike most Rust embedded tutorials (which use `cortex-m` and `cortex-m-rt` crates), this implementation uses **zero external crates** — it shares the same startup code (`crt0.s`) and linker script (`linker.ld`) as C.
+This implementation uses **zero external crates** — it shares the same startup code (`crt0.s`) and linker script (`linker.ld`) as C.
 
 | Aspect | Typical `cortex-m-rt` | This Implementation |
 |--------|-----------------------|---------------------|
 | Entry point | `#[entry]` macro | `#[unsafe(no_mangle)] pub fn main()` |
 | Startup code | Provided by crate | Shared `crt0.s` (same as C) |
 | Linker script | `memory.x` + `link.x` | Shared `linker.ld` |
-| Binary size | ~300+ bytes | **256 bytes** |
 
-### Register Definitions (src/target.rs)
+### 6.2 Raw Pointer Types
 
 Registers are raw pointers — `*mut u32` for read-write, `*const u32` for read-only. The type system catches accidental writes to read-only registers:
 
 ```rust
-pub const RCC_AHB1ENR: *mut u32   = 0x4002_3830 as *mut u32;
-pub const GPIOA_MODER: *mut u32   = 0x4002_0000 as *mut u32;
-pub const GPIOA_ODR: *mut u32     = 0x4002_0014 as *mut u32;
-pub const GPIOC_MODER: *mut u32   = 0x4002_0800 as *mut u32;
-pub const GPIOC_IDR: *const u32   = 0x4002_0810 as *const u32; // read-only
+pub const RCC_AHB1ENR: *mut u32  = 0x4002_3830 as *mut u32;
+pub const GPIOC_IDR: *const u32  = 0x4002_0810 as *const u32; // read-only
 ```
 
-Note the `_` separators in hex literals — Rust allows them for readability, and the compiler ignores them.
+The `_` separators in hex literals improve readability.
 
-### GPIO Initialization (src/main.rs)
+### 6.3 Volatile Access with Unsafe
 
-Volatile access uses `read_volatile()` / `write_volatile()` on raw pointers. Unlike C's transparent `volatile` macros, every access in Rust is explicitly marked:
+Unlike C's transparent `volatile` macros, Rust requires explicit `read_volatile()` / `write_volatile()` calls inside `unsafe` blocks:
 
 ```rust
-fn led_init() {
-    unsafe {
-        RCC_AHB1ENR.write_volatile(
-            RCC_AHB1ENR.read_volatile() | (1 << 0)
-        );
-        let moder = GPIOA_MODER.read_volatile();
-        GPIOA_MODER.write_volatile(
-            (moder & !(0x3 << (LED_PIN * 2)))
-                | (0x1 << (LED_PIN * 2)),
-        );
-    }
-}
-
-fn button_init() {
-    unsafe {
-        RCC_AHB1ENR.write_volatile(
-            RCC_AHB1ENR.read_volatile() | (1 << 2)
-        );
-        GPIOC_MODER.write_volatile(
-            GPIOC_MODER.read_volatile() & !(0x3 << (BUTTON_PIN * 2)),
-        );
-    }
+unsafe {
+    RCC_AHB1ENR.write_volatile(RCC_AHB1ENR.read_volatile() | (1 << 0));
 }
 ```
 
-The `unsafe` blocks are a **contract**: you are promising the pointer is valid and properly aligned. In bare-metal code, the burden is on the programmer — just like C.
+The `unsafe` block is a **contract**: you promise the pointer is valid and properly aligned.
 
-### Button Reading
-
-```rust
-fn button_is_pressed() -> bool {
-    unsafe {
-        (GPIOC_IDR.read_volatile() >> BUTTON_PIN) & 1 == 0
-    }
-}
-```
-
-The same active-LOW logic as C, but expressed as a `bool` instead of an `int` — Rust's type system communicates intent more clearly.
-
-### Entry Point and Main Loop (src/main.rs)
+### 6.4 No-Std Entry Point
 
 ```rust
 #![no_std]
@@ -314,24 +269,8 @@ The same active-LOW logic as C, but expressed as a `bool` instead of an `int` �
 
 #[unsafe(no_mangle)]
 pub fn main() {
-    led_init();
-    button_init();
-
-    let mut blink_fast = false;
-    let mut prev_button = false;
-
-    loop {
-        let curr_button = button_is_pressed();
-
-        if curr_button && !prev_button {
-            blink_fast = !blink_fast;
-            delay_ms(200);
-        }
-        prev_button = curr_button;
-
-        led_toggle();
-        delay_ms(if blink_fast { BLINK_FAST_MS } else { BLINK_SLOW_MS });
-    }
+    // Application logic
+    loop { /* ... */ }
 }
 
 #[panic_handler]
@@ -340,49 +279,144 @@ fn _panic(_: &core::panic::PanicInfo) -> ! {
 }
 ```
 
-**Key points:**
-- `#![no_std]` — no heap, no I/O, no runtime. The `#[panic_handler]` is mandatory; without it the linker fails.
-- `#[unsafe(no_mangle)]` — edition 2024 syntax (NOT the old `#[no_mangle]`). Prevents name mangling so `crt0.s` can call `main()` by symbol.
-- The function never returns (`loop {}` is type `!`), so there is no return type.
+- `#![no_std]` — no heap, no I/O, no runtime
+- `#![no_main]` — no standard entry point; `crt0.s` calls `main()`
+- `#[unsafe(no_mangle)]` — edition 2024 syntax, prevents name mangling
+- `#[panic_handler]` — mandatory for `no_std`; loops forever on panic
 
-### Build
+### 6.5 Build
 
 ```bash
 cd code/01-led-blinker/rust
 make clean all
 ```
 
-Output: `led-blinker.elf` (see [Binary Size Comparison](#binary-size-comparison) for sizes).
+> **Full source:**
+> - [`src/target.rs`](../code/01-led-blinker/rust/src/target.rs) — Register definitions
+> - [`src/main.rs`](../code/01-led-blinker/rust/src/main.rs) — Application logic
+> - [`src/time.rs`](../code/01-led-blinker/rust/src/time.rs) — SysTick delay
 
-## Language Notes: Ada
+---
 
-> **Full source:** [`code/01-led-blinker/ada/`](../code/01-led-blinker/ada/)
+## 7. Language Notes: Ada
 
-Ada uses `pragma Volatile` for hardware registers, modular types (`mod 2**32`) for unsigned wraparound arithmetic, and `System.Address` for memory-mapped I/O. The Light runtime handles `.data`/`.bss` initialization.
+```
+code/01-led-blinker/ada/
+├── led_blinker.gpr     # GNAT project file
+├── led_blinker.adc     # Configuration pragmas
+├── Makefile
+└── src/
+    ├── crt0.S           # Startup code (same logic as common/)
+    ├── led_blinker.adb  # Main procedure
+    ├── nucleo_f446re.ads # Package specification (registers, types)
+    └── nucleo_f446re.adb # Package body (implementations)
+```
 
-### Binary Size Comparison
+Ada separates **specification** (`.ads`) from **implementation** (`.adb`). The specification declares types, constants, and subprogram signatures; the body provides implementations.
 
-| Language | .text | .bss | Total | Difference |
-|----------|-------|------|-------|------------|
-| C        | 244   | 0    | 244   | baseline   |
-| Rust     | 280   | 0    | 280   | +36 bytes (+15%) |
-| Ada      | 280   | 4    | 284   | +40 bytes (+16%) |
+### 7.1 Modular Types
 
-**Why are Rust and Ada larger than C?**
+Ada uses modular types for unsigned integers with wraparound arithmetic (equivalent to C's `uint32_t`):
 
-- **Rust** — Mandatory panic handler stub and lang items (+36 bytes)
-- **Ada** — Elaboration mechanism (`adainit`), GNAT metadata in `.rodata`, and elaboration flag in `.bss` (+40 bytes)
+```ada
+type UInt32 is mod 2 ** 32;
+for UInt32'Size use 32;
+pragma Provide_Shift_Operators (UInt32);
+```
 
-> **Deep dive:** See [Compiler & Linker Switches](A01-compiler-linker-switches.md) for details on `-flto` and other optimization flags.
+The pragma enables `Shift_Left` and `Shift_Right` functions.
 
-## Language Notes: Zig
+### 7.2 Address Conversion
+
+`System.Address` provides type-safe memory address representation:
+
+```ada
+RCC_AHB1ENR : constant System.Address := System'To_Address (16#40023830#);
+```
+
+### 7.3 Volatile Register Access
+
+Ada overlays variables at hardware addresses using the `Address` and `Volatile` aspects:
+
+```ada
+procedure Led_Init is
+   Rcc_Ahb1enr_Value : Register
+      with Address => RCC_AHB1ENR, Volatile;
+begin
+   Rcc_Ahb1enr_Value := Rcc_Ahb1enr_Value or Register (RCC_AHB1ENR_GPIOAEN);
+end Led_Init;
+```
+
+Variables are declared in the declarative region (between `is` and `begin`), not inline.
+
+### 7.4 Bit Manipulation with Shift_Left
+
+Ada provides explicit shift functions rather than operators:
+
+```ada
+Gpioa_Odr_Value := Gpioa_Odr_Value
+   xor Register (Shift_Left (UInt32'(1), Natural (LED_PIN)));
+```
+
+`UInt32'(1)` is a qualified expression specifying the type of the literal.
+
+### 7.5 Loop with Exit When
+
+Ada's `exit when` provides clean loop termination:
+
+```ada
+loop
+   exit when (Ctrl_Value and Register (SYSTICK_CTRL_COUNTFLAG)) /= 0;
+end loop;
+```
+
+### 7.6 Main Procedure
+
+```ada
+with Nucleo_F446RE; use Nucleo_F446RE;
+
+procedure Led_Blinker is
+   Is_Fast : Boolean := False;
+begin
+   Led_Init;
+   Button_Init;
+   loop
+      -- Edge detection and blink logic
+      Delay_Ms (if Is_Fast then 100 else 500);
+   end loop;
+end Led_Blinker;
+```
+
+- `with ... use ...` — imports package and makes declarations visible
+- `loop ... end loop` — infinite loop (like C's `while(1)`)
+- Conditional expression: `if ... then ... else ...` (Ada 2012+)
+
+### 7.7 Build
+
+```bash
+cd code/01-led-blinker/ada
+make clean all
+```
+
+> **Full source:**
+> - [`src/nucleo_f446re.ads`](../code/01-led-blinker/ada/src/nucleo_f446re.ads) — Package specification
+> - [`src/nucleo_f446re.adb`](../code/01-led-blinker/ada/src/nucleo_f446re.adb) — Package body
+> - [`src/led_blinker.adb`](../code/01-led-blinker/ada/src/led_blinker.adb) — Main procedure
+
+---
+
+## 8. Language Notes: Zig
 
 > **Status:** Placeholder — implementation coming soon.
 > Project scaffold: [`code/01-led-blinker/zig/`](../code/01-led-blinker/zig/)
 
-Zig offers `comptime` address conversion (`@ptrFromInt`), explicit `*volatile` pointer types, and no hidden control flow. Uses inline assembly for startup code (`startup.zig`).
+Zig offers `comptime` address conversion (`@ptrFromInt`), explicit `*volatile` pointer types, and no hidden control flow.
 
-## Running in QEMU
+---
+
+## 9. Running and Debugging
+
+### 9.1 Running in QEMU
 
 All language implementations produce a binary that runs identically:
 
@@ -403,9 +437,9 @@ arm-none-eabi-gdb -ex "target remote :1234" -ex "break main" \
 
 > **Detailed guide:** See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for QEMU installation, GDB workflows, and advanced debugging flags. See [GDB Survival Guide](00c-gdb-survival-guide.md) for the full GDB command reference.
 
-## Running in Renode
+### 9.2 Running in Renode
 
-[Renode](https://renode.io/) provides faster execution and better debugging than QEMU for this platform. The C and Rust Makefiles include a `renode` target:
+[Renode](https://renode.io/) provides faster execution and better debugging than QEMU for this platform. The C, Rust, and Ada Makefiles include a `renode` target:
 
 ```bash
 cd code/01-led-blinker/c
@@ -424,7 +458,7 @@ You should see messages like:
 [NOISY] UserLED: LED state changed to False
 ```
 
-### Testing the Button
+### 9.3 Testing the Button
 
 The button on PC13 is active LOW. To test speed toggling:
 
@@ -439,7 +473,7 @@ You should see the LED toggling at a faster rate (100ms period vs 500ms slow). P
 
 > **Note:** `UserButton` is registered on `sysbus` (not as a child of `gpioPortC`), so it can be accessed directly by short name.
 
-### GDB Debugging with Renode
+### 9.4 GDB Debugging with Renode
 
 ```bash
 # Terminal 1: Start Renode with GDB stub
@@ -451,29 +485,93 @@ arm-none-eabi-gdb -ex "target remote :3333" -ex "break main" -ex "continue" led-
 
 > **Renode setup:** See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for installation and general usage.
 
-## Deliverables
+---
+
+## 10. Binary Size Comparison
+
+| Language | .text | .bss | Total | Difference |
+|----------|-------|------|-------|------------|
+| C        | 244   | 0    | 244   | baseline   |
+| Rust     | 280   | 0    | 280   | +36 bytes (+15%) |
+| Ada      | 280   | 4    | 284   | +40 bytes (+16%) |
+
+**Why are Rust and Ada larger than C?**
+
+- **Rust** — Mandatory panic handler stub and lang items (+36 bytes)
+- **Ada** — Elaboration mechanism (`adainit`), GNAT metadata in `.rodata`, and elaboration flag in `.bss` (+40 bytes)
+
+> **Deep dive:** See [Compiler & Linker Switches](A01-compiler-linker-switches.md) for details on `-flto` and other optimization flags.
+
+---
+
+## 11. Deliverables
 
 - [ ] LED blinks at default slow speed (500ms period)
 - [ ] Button press toggles to fast blink (100ms period)
 - [ ] Another press returns to slow blink
 - [ ] Verify using Renode: `logLevel -1 UserLED` + `UserButton Press`/`Release`
-- [ ] Verify binary sizes match [Binary Size Comparison](#binary-size-comparison) table
+- [ ] Verify binary sizes match [Binary Size Comparison](#10-binary-size-comparison) table
 - [ ] Understand why peripheral clocks must be enabled before register access
 - [ ] Understand output (MODER, ODR) vs input (MODER, IDR) GPIO configuration
 
-## What You Learned
+---
 
-| Concept                  | C                              | Rust                                  |
-|--------------------------|--------------------------------|---------------------------------------|
-| **Entry point**          | `Reset_Handler` in assembly    | `#[unsafe(no_mangle)] pub fn main()`  |
-| **Volatile access**      | `volatile` type qualifier      | `read_volatile` / `write_volatile`    |
-| **Linker script**        | Shared `linker.ld`             | Shared `linker.ld`                    |
-| **Startup code**         | Shared `crt0.s`                | Shared `crt0.s`                       |
-| **No-std declaration**   | `-ffreestanding -nostdlib`     | `#![no_std] #![no_main]`              |
-| **Infinite loop**        | `while (1) {}`                 | `loop {}` (type `!`)                  |
-| **Binary size**          | See [comparison table](#binary-size-comparison) | See [comparison table](#binary-size-comparison) |
+## 12. What You Learned
 
-## Next Steps
+| Concept                  | C                              | Rust                                  | Ada                                   |
+|--------------------------|--------------------------------|---------------------------------------|---------------------------------------|
+| **Entry point**          | `Reset_Handler` in assembly    | `#[unsafe(no_mangle)] pub fn main()`  | `procedure Led_Blinker`               |
+| **Volatile access**      | `volatile` type qualifier      | `read_volatile` / `write_volatile`    | `Volatile` aspect + `Address` aspect  |
+| **Linker script**        | Shared `linker.ld`             | Shared `linker.ld`                    | Shared `linker.ld`                    |
+| **Startup code**         | Shared `crt0.s`                | Shared `crt0.s`                       | Own `crt0.S` (same logic)             |
+| **No-std declaration**   | `-ffreestanding -nostdlib`     | `#![no_std] #![no_main]`              | `-nostdlib -nostartfiles`             |
+| **Infinite loop**        | `while (1) {}`                 | `loop {}` (type `!`)                  | `loop ... end loop;`                  |
+| **Bit shifts**           | `<<` operator                  | `<<` operator                         | `Shift_Left` function                 |
+| **Module system**        | Header files (`.h`)            | Modules (`mod`)                       | Packages (`.ads` / `.adb`)            |
+| **Binary size**          | 244 bytes                      | 280 bytes                             | 284 bytes                             |
+| **Abstraction level**    | Raw pointers                   | Raw pointers (no PAC/HAL)             | Raw aspects (no high-level bindings)  |
+
+> **Note:** All implementations use the same low-level approach in this project. Higher-level language features (Rust PAC/HAL, Ada SPARK/Ravenscar) will be introduced progressively in later projects.
+
+---
+
+## 13. Exercises
+
+### Exercise 1: Modify Blink Timing
+
+Change the slow blink period to 1000ms and the fast blink period to 50ms. Rebuild and verify in Renode.
+
+**Hint:** Find `BLINK_SLOW_MS` and `BLINK_FAST_MS` constants in each implementation.
+
+### Exercise 2: Three-Speed Mode
+
+Modify the program to cycle through three speeds instead of two:
+- Slow (1000ms)
+- Medium (500ms)
+- Fast (100ms)
+
+**Hint:** Replace the boolean `blink_fast` with an integer counter (0, 1, 2) and use modulo arithmetic.
+
+### Exercise 3: Toggle On/Off Mode
+
+Instead of changing blink speed, make the button toggle the LED completely on or off:
+- First press: LED stays on continuously
+- Second press: LED stays off continuously
+- Third press: LED returns to blinking
+
+**Hint:** Introduce a state machine with three states: `BLINKING`, `ON`, `OFF`.
+
+### Exercise 4: Long Press Detection
+
+Detect a long press (held for >1 second) vs a short press:
+- Short press: toggle blink speed
+- Long press: toggle LED on/off mode
+
+**Hint:** Record the time when the button is first pressed and compare when released.
+
+---
+
+## 14. Next Steps
 
 You now understand the boot process, memory layout, and register access for bare-metal ARM. In [Project 2: UART Echo Server](02-uart-echo.md), you will add serial communication — learning baud rate calculation, polling vs. interrupt-driven I/O, and how each language handles peripheral configuration with more complexity.
 
@@ -481,7 +579,7 @@ You now understand the boot process, memory layout, and register access for bare
 
 ---
 
-## References
+## 15. References
 
 ### STMicroelectronics Documentation
 - [STM32F446 Reference Manual (RM0390)](https://www.st.com/resource/en/reference_manual/dm00135183-stm32f446xx-advanced-arm-based-32-bit-mcus-stmicroelectronics.pdf) — Ch. 6: RCC, Ch. 7: GPIO
