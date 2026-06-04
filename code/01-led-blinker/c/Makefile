@@ -42,11 +42,14 @@ ASFLAGS = -mcpu=cortex-m4 -mthumb
 
 TARGET  = led-blinker
 
-RENODE := renode
+RENODE 					= renode
 RENODE_PLATFORM = ../renode/nucleo-f446re.repl
-RENODE_SCRIPT = ../renode/led-blinker.resc
+RENODE_SCRIPT 	= ../renode/led-blinker.resc
 
 all: $(TARGET).bin size
+
+debug: OPTIM_FLAGS := -g3 -Og
+debug: all
 
 -include $(subst .o,.d,$(OBJS))
 

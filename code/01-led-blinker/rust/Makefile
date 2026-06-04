@@ -8,15 +8,24 @@ SIZE    = $(PREFIX)size
 
 TARGET  = led-blinker
 
-RENODE := renode
+RENODE 					= renode
 RENODE_PLATFORM = ../renode/nucleo-f446re.repl
-RENODE_SCRIPT = ../renode/led-blinker.resc
+RENODE_SCRIPT 	= ../renode/led-blinker.resc
+
+# Variables specific to Rust
+TARGET_TRIPLET = thumbv7em-none-eabihf
+BUILD_PROFILE = --release
+BUILD_DIR = release
 
 all: $(TARGET).bin size
 
+debug: BUILD_DIR = debug
+debug: BUILD_PROFILE = 
+debug: all
+
 $(TARGET).elf:
-	cargo build --release
-	cp target/thumbv7em-none-eabihf/release/$(TARGET) $@
+	cargo build $(BUILD_PROFILE)
+	cp target/$(TARGET_TRIPLET)/$(BUILD_DIR)/$(TARGET) $@
 
 $(TARGET).bin: $(TARGET).elf
 	$(OBJCOPY) -O binary $< $@

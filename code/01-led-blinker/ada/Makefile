@@ -12,19 +12,25 @@ OBJS_DIR = obj
 SRCS    = $(wildcard $(SRCS_DIR)/*.c)
 OBJS    = $(SRCS:$(SRCS_DIR)/%.c=$(OBJS_DIR)/%.o)
 
-PROJECT  = led_blinker.gpr
+PROJECT = led_blinker.gpr
 TARGET  = led-blinker
 
-RENODE := renode
+RENODE 					= renode
 RENODE_PLATFORM = ../renode/nucleo-f446re.repl
-RENODE_SCRIPT = ../renode/led-blinker.resc
+RENODE_SCRIPT 	= ../renode/led-blinker.resc
+
+# Variables specific to Ada
+SCENARIO_VARIABLES =
 
 all: $(TARGET).bin size
+
+debug: SCENARIO_VARIABLES = -XBUILD_MODE=DEBUG
+debug: all
 
 -include $(subst .o,.d,$(OBJS))
 
 $(TARGET).elf: $(OBJS)
-	gprbuild -P $(PROJECT)
+	gprbuild $(SCENARIO_VARIABLES) -P $(PROJECT)
 	cp $(OBJS_DIR)/$@ .
 
 $(TARGET).bin: $(TARGET).elf
