@@ -13,6 +13,7 @@ code/**/rust/target/
 code/**/rust/.cargo/.rustc_info.json
 
 # Ada
+.als.json
 code/**/ada/obj/
 code/**/ada/*.ali
 
