@@ -7,30 +7,50 @@ project Led_Blinker is
    for Main use ("led_blinker.adb");
 
    for Target use "arm-eabi";
-   for Runtime ("ada") use "light-cortex-m4";
+   for Runtime ("ada") use "light-cortex-m4f";
 
    package Builder is
       for Executable ("led_blinker.adb") use "led-blinker";   
       for Executable_Suffix use ".elf";   
+
+      for Global_Configuration_Pragmas use "led_blinker.adc";
    end Builder;
 
    package Compiler is
       for Default_Switches ("ada") use (
+                                        --  Common flags with C project
                                         "-g",
                                         "-mcpu=cortex-m4",
                                         "-mthumb",
                                         "-mfloat-abi=hard",
                                         "-mfpu=fpv4-sp-d16",
+                                        "-flto",
                                         "-Os",
                                         "-Wall",
                                         "-Wextra",
                                         "-Werror",
-                                        "-nostdlib"
+                                        "-nostdlib",
+                                        "-ffunction-sections",  -- Place each function in its own sections
+                                        "-fdata-sections",       -- Place each data item in its own sections
+                                        ---- GNAT specific switches ----
+                                        "-gnatwa", -- Enable all warnings
+                                        "-gnatp",  -- Suppress all runtime checks
+                                        "-gnatwe", -- Treat all warnings as errors
+                                        "-gnatp"   -- Suppress all runtime checks
                                        );
    end Compiler;
 
    package Linker is
-      for Switches ("Ada") use ("-T", Project'Project_Dir & "../common/linker.ld");
+      for Switches ("Ada") use (
+                                 -- Use common linker script for all projects
+                                "-T", Project'Project_Dir & "../common/linker.ld",
+                                "-Wl,--gc-sections",  -- Remove unused sections
+                                --  "-Wl,--print-gc-sections",  -- Print removed unused sections
+                                ---- GNAT specific switches ----
+                                "-nostdlib",
+                                "-nodefaultlibs",
+                                "-nostartfiles"
+                               );
    end Linker;
 
 end Led_Blinker;
