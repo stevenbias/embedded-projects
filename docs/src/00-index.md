@@ -203,6 +203,9 @@ See [Emulator Setup & Usage Guide](00b-emulator-setup.md) for complete installat
 - [GDB Survival Guide](00c-gdb-survival-guide.md)
 - [Linker Scripts & crt0.s Guide](00d-linker-crt0-guide.md)
 
+### Appendices
+- [Compiler & Linker Switches](A01-compiler-linker-switches.md)
+
 ---
 
 > **Ready to begin?** Start with [Prerequisites & Toolchain Setup](00a-prerequisites.md), then [Emulator Setup](00b-emulator-setup.md), review the [GDB Survival Guide](00c-gdb-survival-guide.md), and head to [Project 1: LED Blinker](01-led-blinker.md).

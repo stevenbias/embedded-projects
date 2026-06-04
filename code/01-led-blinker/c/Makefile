@@ -21,16 +21,35 @@ OBJS    += $(OBJS_DIR)/crt0.o
 # CPP stands for C PreProcessor
 # -I is a preprocessor flag, not a compiler flag
 CPPFLAGS := -I$(INCS_DIR)
-CFLAGS  = -g -mcpu=cortex-m4 -mthumb -mfloat-abi=hard -mfpu=fpv4-sp-d16 -Os -Wall -Wextra -Werror -ffreestanding -nostdlib
+OPTIM_FLAGS := -flto -Os
+CFLAGS  = $(OPTIM_FLAGS) \
+					-mcpu=cortex-m4 \
+					-mthumb \
+					-mfloat-abi=hard \
+					-mfpu=fpv4-sp-d16 \
+					-Wall \
+					-Wextra \
+					-Werror \
+					-ffreestanding \
+					-nostdlib
+# Add switches to reduce generated code size
+CFLAGS += -ffunction-sections \
+					-fdata-sections \
+					-Wl,--gc-sections \
+					# -Wl,--print-memory-usage
+	
 ASFLAGS = -mcpu=cortex-m4 -mthumb
 
 TARGET  = led-blinker
 
-RENODE := renode
+RENODE 					= renode
 RENODE_PLATFORM = ../renode/nucleo-f446re.repl
-RENODE_SCRIPT = ../renode/led-blinker.resc
+RENODE_SCRIPT 	= ../renode/led-blinker.resc
 
 all: $(TARGET).bin size
+
+debug: OPTIM_FLAGS := -g3 -Og
+debug: all
 
 -include $(subst .o,.d,$(OBJS))
 

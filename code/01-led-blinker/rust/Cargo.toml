@@ -5,5 +5,5 @@ edition = "2024"
 
 [profile.release]
 opt-level = "s"
-lto = true
+lto = true # Enable Link Time Optimization for better performance and smaller binary size
 panic = "abort"

@@ -1,31 +1,37 @@
-# Makefile — LED Blinker (Rust / STM32F446RE)
+# Makefile — LED Blinker (Ada / STM32F446)
 
-PREFIX	= arm-none-eabi-
+PREFIX	= arm-eabi-
 CC      = $(PREFIX)gcc
 AS      = $(PREFIX)gcc
 OBJCOPY = $(PREFIX)objcopy
 SIZE    = $(PREFIX)size
 
+SRCS_DIR = src
+OBJS_DIR = obj
+
+SRCS    = $(wildcard $(SRCS_DIR)/*.c)
+OBJS    = $(SRCS:$(SRCS_DIR)/%.c=$(OBJS_DIR)/%.o)
+
+PROJECT = led_blinker.gpr
 TARGET  = led-blinker
 
 RENODE 					= renode
 RENODE_PLATFORM = ../renode/nucleo-f446re.repl
 RENODE_SCRIPT 	= ../renode/led-blinker.resc
 
-# Variables specific to Rust
-TARGET_TRIPLET = thumbv7em-none-eabihf
-BUILD_PROFILE = --release
-BUILD_DIR = release
+# Variables specific to Ada
+SCENARIO_VARIABLES =
 
 all: $(TARGET).bin size
 
-debug: BUILD_DIR = debug
-debug: BUILD_PROFILE = 
+debug: SCENARIO_VARIABLES = -XBUILD_MODE=DEBUG
 debug: all
 
-$(TARGET).elf:
-	cargo build $(BUILD_PROFILE)
-	cp target/$(TARGET_TRIPLET)/$(BUILD_DIR)/$(TARGET) $@
+-include $(subst .o,.d,$(OBJS))
+
+$(TARGET).elf: $(OBJS)
+	gprbuild $(SCENARIO_VARIABLES) -P $(PROJECT)
+	cp $(OBJS_DIR)/$@ .
 
 $(TARGET).bin: $(TARGET).elf
 	$(OBJCOPY) -O binary $< $@
@@ -43,7 +49,6 @@ size: $(TARGET).elf
 	$(SIZE) $<
 
 clean:
-	cargo clean
-	rm -f $(TARGET).elf $(TARGET).bin $(TARGET).map
+	rm -f $(OBJS_DIR)/* $(TARGET).elf $(TARGET).bin $(TARGET).map
 
 .PHONY: all clean renode size
