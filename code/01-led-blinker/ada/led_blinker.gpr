@@ -2,10 +2,12 @@ project Led_Blinker is
    type Build_Type is ("RELEASE", "DEBUG");
    BUILD_MODE : Build_Type := external ("BUILD_MODE", "RELEASE");
 
+   BINDER_FLAGS := ();
    OPTIM_FLAGS := ();
 
    case BUILD_MODE is
    when "RELEASE" =>
+      BINDER_FLAGS := ("-minimal");
       OPTIM_FLAGS := ("-flto", "-Os");
    when "DEBUG" =>
       OPTIM_FLAGS := ("-g3", "-Og");
@@ -45,11 +47,14 @@ project Led_Blinker is
                        "-fdata-sections",       -- Place each data item in its own sections
                        ---- GNAT specific switches ----
                        "-gnatwa", -- Enable all warnings
-                       "-gnatp",  -- Suppress all runtime checks
                        "-gnatwe", -- Treat all warnings as errors
                        "-gnatp"   -- Suppress all runtime checks
                       );
    end Compiler;
+
+   package Binder is
+      for Switches ("ada") use BINDER_FLAGS;
+   end Binder;
 
    package Linker is
       for Switches ("Ada") use (
