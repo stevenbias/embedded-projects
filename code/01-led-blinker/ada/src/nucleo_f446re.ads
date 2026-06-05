@@ -1,6 +1,6 @@
 with System;
 
-package Nucleo_F446RE is
+package Nucleo_F446RE with Preelaborate is
    ---- Types for 32-bit wide registers ----
    type Bits32_Range is range 0 .. 31;
    for Bits32_Range'Size use 32;
