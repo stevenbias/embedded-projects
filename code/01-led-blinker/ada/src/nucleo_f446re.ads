@@ -1,64 +1,126 @@
 with System;
 
-package Nucleo_F446RE is
+package Nucleo_F446RE with Preelaborate is
+   ---- Types for 32-bit wide registers ----
+   type Bits32_Range is range 0 .. 31;
+   for Bits32_Range'Size use 32;
 
-   type UInt32 is mod 2 ** 32;
-   for UInt32'Size use 32;
-   pragma Provide_Shift_Operators (UInt32);
+   subtype IO_Range is Bits32_Range range 0 .. 15;
 
-   type Register is mod 2**32 with Size => 32, Alignment => 1;
+   type Register_T is mod 2 ** 32 with Size => 32, Volatile;
 
-   RCC_BASE    : constant := 16#40023800#;
-   RCC_AHB1ENR : constant System.Address := System'To_Address (RCC_BASE + 16#30#);
+   ---- Constants specific to the STM32F446RE ----
+   HSI_VALUE  : constant := 16_000_000; -- 16 MHz
+   LED_PIN    : constant IO_Range := 5;
+   BUTTON_PIN : constant IO_Range := 13;
 
-   RCC_AHB1ENR_GPIOAEN : constant UInt32 := 1;
-   RCC_AHB1ENR_GPIOCEN : constant UInt32 := 16#04#;
-
-   GPIO_MODE_INPUT  : constant UInt32 := 0;
-   GPIO_MODE_OUTPUT : constant UInt32 := 1;
-   GPIO_MODE_AF     : constant UInt32 := 2;
-   GPIO_MODE_ANALOG : constant UInt32 := 3;
-   GPIO_MODE_MASK   : constant UInt32 := 3;
-
+   ---- Register Offsets ----
    GPIOx_MODER_OFFSET : constant := 16#00#;
    GPIOx_IDR_OFFSET   : constant := 16#10#;
    GPIOx_ODR_OFFSET   : constant := 16#14#;
 
-   GPIOA_BASE  : constant := 16#40020000#;
-   GPIOA_MODER : constant System.Address :=
-      System'To_Address (GPIOA_BASE + GPIOx_MODER_OFFSET);
-   GPIOA_ODR   : constant System.Address :=
-      System'To_Address (GPIOA_BASE + GPIOx_ODR_OFFSET);
+   RCC_AHB1ENR_OFFSET : constant := 16#30#;
 
-   GPIOC_BASE  : constant := 16#40020800#;
-   GPIOC_MODER : constant System.Address :=
-      System'To_Address (GPIOC_BASE + GPIOx_MODER_OFFSET);
-   GPIOC_IDR   : constant System.Address :=
-      System'To_Address (GPIOC_BASE + GPIOx_IDR_OFFSET);
+   SYSTICK_CTRL_OFFSET : constant := 16#00#;
+   SYSTICK_LOAD_OFFSET : constant := 16#04#;
+   SYSTICK_VAL_OFFSET  : constant := 16#08#;
 
+   ---- Peripheral Base Addresses ----
    SYSTICK_BASE : constant := 16#E000E010#;
-   SYSTICK_CTRL : constant System.Address := System'To_Address (SYSTICK_BASE + 16#00#);
-   SYSTICK_LOAD : constant System.Address := System'To_Address (SYSTICK_BASE + 16#04#);
-   SYSTICK_VAL  : constant System.Address := System'To_Address (SYSTICK_BASE + 16#08#);
+   RCC_BASE     : constant System.Address := System'To_Address (16#40023800#);
+   GPIOA_BASE   : constant System.Address := System'To_Address (16#40020000#);
+   GPIOC_BASE   : constant System.Address := System'To_Address (16#40020800#);
 
-   SYSTICK_CTRL_ENABLE    : constant UInt32 := 16#0000_0001#;
-   SYSTICK_CTRL_TICKINT   : constant UInt32 := 16#0000_0002#;
-   SYSTICK_CTRL_CLKSOURCE : constant UInt32 := 16#0000_0004#;
-   SYSTICK_CTRL_COUNTFLAG : constant UInt32 := 16#0001_0000#;
-   SYSTICK_LOAD_MAX       : constant UInt32 := 16#00FF_FFFF#;
+   ---- GPIO Register Types ----
+   type MODER_Val_T is (INPUT, OUTPUT, AF, ANALOG) with Size => 2;
+   for MODER_Val_T use (INPUT => 0, OUTPUT => 1, AF => 2, ANALOG => 3);
 
-   LED_PIN    : constant UInt32 := 5;
-   BUTTON_PIN : constant UInt32 := 13;
+   type MODER_T is array (IO_Range) of MODER_Val_T
+   with Component_Size => MODER_Val_T'Size, Size => 32, Volatile_Full_Access;
 
-   HSI_VALUE : constant UInt32 := 16_000_000; -- 16 MHz
+   type IDR_T is array (IO_Range) of Boolean
+   with Component_Size => 1, Size => 16, Volatile_Full_Access;
+
+   type ODR_T is array (IO_Range) of Boolean
+   with Component_Size => 1, Size => 16, Volatile_Full_Access;
+
+   type GPIO_T is record
+      MODER : MODER_T;
+      IDR   : IDR_T;
+      ODR   : ODR_T;
+   end record;
+   for GPIO_T use
+     record
+       MODER at GPIOx_MODER_OFFSET range 0 .. 31;
+       IDR   at GPIOx_IDR_OFFSET   range 0 .. 15;
+       ODR   at GPIOx_ODR_OFFSET   range 0 .. 15;
+     end record;
+   --  Define only the necessary fields for this example
+
+   ---- RCC Register Types ----
+   type AHB1ENR_T is record
+      GPIOA_EN : Boolean;
+      GPIOC_EN : Boolean;
+   end record
+   with Size => 32, Volatile_Full_Access;
+   for AHB1ENR_T use
+     record
+       GPIOA_EN at 0 range 0 .. 0;
+       GPIOC_EN at 0 range 2 .. 2;
+     end record;
+
+   type RCC_T is record
+      AHB1ENR : AHB1ENR_T;
+   end record;
+   for RCC_T use
+     record
+       AHB1ENR at RCC_AHB1ENR_OFFSET range 0 .. 31;
+     end record;
+   --  Define only the necessary fields for this example
+
+   ---- Systick Register Types ----
+   type Systick_Ctrl_T is record
+      Enable     : Boolean;
+      Tick_Int   : Boolean;
+      Clk_Source : Boolean;
+      Count_Flag : Boolean;
+   end record
+   with Size => 32, Volatile_Full_Access;
+   for Systick_Ctrl_T use
+     record
+       Enable     at 0 range 0 .. 0;
+       Tick_Int   at 0 range 1 .. 1;
+       Clk_Source at 0 range 2 .. 2;
+       Count_Flag at 0 range 16 .. 16;
+     end record;
+
+   ---- Peripheral Instances ----
+   GPIOA        : GPIO_T
+   with Address => GPIOA_BASE, Volatile;
+   GPIOC        : GPIO_T
+   with Address => GPIOC_BASE, Volatile;
+   RCC          : RCC_T
+   with Address => RCC_BASE, Volatile;
+   Systick_Ctrl : Systick_Ctrl_T
+   with
+     Address => System'To_Address (SYSTICK_BASE + SYSTICK_CTRL_OFFSET),
+     Volatile_Full_Access;
+   Systick_Load : Register_T
+   with
+     Address => System'To_Address (SYSTICK_BASE + SYSTICK_LOAD_OFFSET),
+     Volatile_Full_Access;
+   Systick_Val  : Register_T
+   with
+     Address => System'To_Address (SYSTICK_BASE + SYSTICK_VAL_OFFSET),
+     Volatile_Full_Access;
 
    type Delay_Ms_T is range 0 .. 1000;
-   
-   procedure Delay_Ms (Milliseconds : in Delay_Ms_T);
+
    procedure Led_Init;
    procedure Led_Toggle;
 
    procedure Button_Init;
    function Button_Is_Pressed return Boolean;
 
+   procedure Delay_Ms (Milliseconds : in Delay_Ms_T);
 end Nucleo_F446RE;
