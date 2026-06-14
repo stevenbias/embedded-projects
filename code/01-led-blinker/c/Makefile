@@ -46,6 +46,9 @@ RENODE 					= renode
 RENODE_PLATFORM = ../renode/nucleo-f446re.repl
 RENODE_SCRIPT 	= ../renode/led-blinker.resc
 
+GDBINIT 		= ../common/.gdbinit
+OPENOCD_CFG = ../common/openocd.cfg
+
 all: $(TARGET).bin size
 
 debug: OPTIM_FLAGS := -g3 -Og
@@ -73,6 +76,10 @@ $(OBJS_DIR):
 
 erase:
 	st-flash erase
+
+openocd: clean debug flash
+	openocd -f $(OPENOCD_CFG) &
+	gdb-multiarch -x $(GDBINIT)
 
 flash: $(TARGET).bin
 	st-flash write $(TARGET).bin 0x08000000

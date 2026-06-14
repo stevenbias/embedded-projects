@@ -19,6 +19,9 @@ RENODE 					= renode
 RENODE_PLATFORM = ../renode/nucleo-f446re.repl
 RENODE_SCRIPT 	= ../renode/led-blinker.resc
 
+GDBINIT 		= ../common/.gdbinit
+OPENOCD_CFG = ../common/openocd.cfg
+
 # Variables specific to Ada
 SCENARIO_VARIABLES =
 
@@ -38,6 +41,10 @@ $(TARGET).bin: $(TARGET).elf
 
 erase:
 	st-flash erase
+
+openocd: clean debug flash
+	openocd -f $(OPENOCD_CFG) &
+	gdb-multiarch -ix $(GDBINIT)
 
 flash: $(TARGET).bin
 	st-flash write $(TARGET).bin 0x08000000
